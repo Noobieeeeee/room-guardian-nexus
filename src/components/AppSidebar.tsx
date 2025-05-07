@@ -53,7 +53,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
   };
 
   return (
-    <Sidebar>
+    <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center p-4">
           <div className="text-guardian-yellow font-bold text-2xl">RoomGuardian</div>

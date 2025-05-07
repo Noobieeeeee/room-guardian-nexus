@@ -81,12 +81,12 @@ const Dashboard: React.FC = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar userRole={currentUser.role} />
-        <SidebarInset>
+        <SidebarInset className="flex-1 w-full">
           <Navigation userRole={currentUser.role} />
           
-          <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+          <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-4 sm:mb-6">
               <h1 className="text-xl sm:text-2xl font-bold">Room Dashboard</h1>
               <p className="text-muted-foreground text-sm sm:text-base">

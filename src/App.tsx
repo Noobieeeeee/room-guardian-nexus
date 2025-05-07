@@ -12,8 +12,6 @@ import NotFound from "./pages/NotFound";
 
 // Initialize CSS variables for the sidebar
 import "./styles/sidebar.css";
-// Remove App.css as we're using tailwind for all styling now
-// import "./App.css";
 
 const queryClient = new QueryClient();
 
@@ -23,13 +21,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/logs" element={<Logs />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <div className="w-full min-h-screen">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/logs" element={<Logs />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
