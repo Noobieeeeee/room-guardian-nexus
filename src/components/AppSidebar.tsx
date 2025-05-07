@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/lib/types';
@@ -21,6 +22,7 @@ interface AppSidebarProps {
 
 const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
   const location = useLocation();
+  const { state } = useSidebar();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -56,7 +58,10 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center p-4">
-          <div className="text-guardian-yellow font-bold text-2xl">RoomGuardian</div>
+          <div className={cn(
+            "text-guardian-yellow font-bold text-2xl transition-opacity duration-200",
+            state === "collapsed" ? "opacity-0" : "opacity-100"
+          )}>RoomGuardian</div>
         </div>
       </SidebarHeader>
       
