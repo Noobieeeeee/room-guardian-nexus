@@ -10,6 +10,9 @@ import Settings from "./pages/Settings";
 import Logs from "./pages/Logs";
 import NotFound from "./pages/NotFound";
 
+// Initialize CSS variables for the sidebar
+import "./styles/sidebar.css";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -31,4 +34,3 @@ const App = () => (
 );
 
 export default App;
-

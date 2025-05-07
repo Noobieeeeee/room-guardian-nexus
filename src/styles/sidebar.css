@@ -1,0 +1,58 @@
+
+:root {
+  --sidebar-width: 250px;
+  --sidebar-width-icon: 64px;
+  --background: 0 0% 100%;
+  --foreground: 222.2 47.4% 11.2%;
+  --sidebar: 217 33% 17%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 215 28% 17%;
+  --sidebar-accent: 217 19% 27%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-ring: 242 71% 73%;
+}
+
+.dark {
+  --sidebar: 222.2 84% 4.9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-accent: 217 19% 27%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-ring: 224 76% 48%;
+}
+
+/* Status indicators */
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-available {
+  background-color: #10B981; /* Green */
+}
+
+.status-in-use {
+  background-color: #3B82F6; /* Blue */
+}
+
+.status-reserved {
+  background-color: #EF4444; /* Red */
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.guardian-card-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
