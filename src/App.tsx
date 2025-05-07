@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 
 // Initialize CSS variables for the sidebar
 import "./styles/sidebar.css";
+// Remove App.css as we're using tailwind for all styling now
+// import "./App.css";
 
 const queryClient = new QueryClient();
 

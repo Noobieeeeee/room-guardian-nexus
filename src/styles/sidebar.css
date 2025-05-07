@@ -56,3 +56,18 @@
 .guardian-card-shadow {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
+/* Responsive styles */
+@media (max-width: 640px) {
+  :root {
+    --sidebar-width: 100%;
+    --sidebar-width-icon: 48px;
+  }
+  
+  .sidebar-open {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    z-index: 50;
+  }
+}
