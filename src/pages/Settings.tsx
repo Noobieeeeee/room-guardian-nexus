@@ -13,6 +13,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import AppSidebar from '@/components/AppSidebar';
 import { User } from '@/lib/types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { signOut } from '@/lib/auth';
 
 const Settings: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -23,10 +25,11 @@ const Settings: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [sensorThreshold, setSensorThreshold] = useState('0.5');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // In a real app, fetch user from API
+    // Check for logged in user
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
@@ -39,18 +42,39 @@ const Settings: React.FC = () => {
     }
   }, [navigate]);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-
-    // In a real app, we would send this to an API
-    const updatedUser = { ...currentUser, name, email };
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-    setCurrentUser(updatedUser);
-    toast.success('Profile updated successfully');
+    
+    setIsLoading(true);
+    
+    try {
+      // Update user in Supabase
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name,
+          email
+        })
+        .eq('id', currentUser.id);
+        
+      if (error) throw error;
+      
+      // Update local user state
+      const updatedUser = { ...currentUser, name, email };
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Simple validation
@@ -63,22 +87,52 @@ const Settings: React.FC = () => {
       toast.error('Password must be at least 6 characters');
       return;
     }
+    
+    setIsLoading(true);
 
-    // In a real app, we would send this to an API
-    toast.success('Password updated successfully');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      // Update password in Supabase
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (error) throw error;
+      
+      toast.success('Password updated successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      toast.error('Failed to update password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdateSettings = (e: React.FormEvent) => {
+  const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, we would send this to an API
     toast.success('Settings updated successfully');
   };
 
+  const handleLogout = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!currentUser) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-guardian-yellow"></div>
+      </div>
+    );
   }
 
   return (
@@ -140,12 +194,23 @@ const Settings: React.FC = () => {
                           />
                         </div>
                       </div>
-                      <Button 
-                        type="submit" 
-                        className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
-                      >
-                        Update Profile
-                      </Button>
+                      <div className="flex space-x-3">
+                        <Button 
+                          type="submit" 
+                          className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Updating...' : 'Update Profile'}
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={handleLogout}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Signing out...' : 'Sign Out'}
+                        </Button>
+                      </div>
                     </form>
                   </CardContent>
                 </Card>
@@ -188,8 +253,9 @@ const Settings: React.FC = () => {
                       <Button 
                         type="submit" 
                         className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
+                        disabled={isLoading}
                       >
-                        Update Password
+                        {isLoading ? 'Updating...' : 'Update Password'}
                       </Button>
                     </form>
                   </CardContent>

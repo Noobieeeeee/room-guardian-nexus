@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockLogs, mockRooms, mockCurrentUser } from '@/lib/mockData';
 import { ActivityLog, User } from '@/lib/types';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,23 +15,28 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import AppSidebar from '@/components/AppSidebar';
+import { getActivityLogs, getRooms } from '@/lib/api';
+import { toast } from 'sonner';
 
 const Logs: React.FC = () => {
-  const [logs, setLogs] = useState<ActivityLog[]>(mockLogs);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>(mockLogs);
+  const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>([]);
   const [roomFilter, setRoomFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [rooms, setRooms] = useState<{id: number, name: string}[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // In a real app, fetch logs from API
+    // Check for logged in user and verify they're an admin
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
       if (user.role !== 'admin') {
+        toast.error('Admin access required');
         navigate('/dashboard');
         return;
       }
@@ -41,6 +45,28 @@ const Logs: React.FC = () => {
       navigate('/');
       return;
     }
+    
+    // Fetch logs and rooms data
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [logsData, roomsData] = await Promise.all([
+          getActivityLogs(),
+          getRooms()
+        ]);
+        
+        setLogs(logsData);
+        setFilteredLogs(logsData);
+        setRooms(roomsData.map(room => ({ id: room.id, name: room.name })));
+      } catch (error) {
+        console.error('Error fetching logs data:', error);
+        toast.error('Failed to load activity logs');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
   }, [navigate]);
 
   useEffect(() => {
@@ -88,8 +114,16 @@ const Logs: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-guardian-yellow"></div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <div>Loading...</div>;
+    return <div>Redirecting...</div>;
   }
 
   return (
@@ -121,7 +155,7 @@ const Logs: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Rooms</SelectItem>
-                        {mockRooms.map(room => (
+                        {rooms.map(room => (
                           <SelectItem key={room.id} value={room.id.toString()}>
                             {room.name}
                           </SelectItem>

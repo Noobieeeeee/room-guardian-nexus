@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Room, Schedule, User } from '@/lib/types';
-import { mockRooms } from '@/lib/mockData';
 import { format } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +20,7 @@ interface AddScheduleModalProps {
   user: User;
   existingSchedules: Schedule[];
   initialRoomId?: number;
+  rooms: Room[];
 }
 
 const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
@@ -29,7 +29,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
   onSave,
   user,
   existingSchedules,
-  initialRoomId
+  initialRoomId,
+  rooms
 }) => {
   const today = new Date();
   const [selectedRoom, setSelectedRoom] = useState<string>(initialRoomId ? initialRoomId.toString() : '');
@@ -88,7 +89,6 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     };
 
     onSave(newSchedule);
-    toast.success("Schedule created successfully");
     resetForm();
     onClose();
   };
@@ -129,7 +129,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                 <SelectValue placeholder="Select a room" />
               </SelectTrigger>
               <SelectContent>
-                {mockRooms.map((room) => (
+                {rooms.map((room) => (
                   <SelectItem key={room.id} value={room.id.toString()}>
                     {room.name}
                   </SelectItem>
