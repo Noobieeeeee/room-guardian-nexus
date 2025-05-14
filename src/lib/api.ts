@@ -55,11 +55,7 @@ export async function updateRoomStatus(roomId: number, status: 'available' | 'in
 // Schedule APIs
 export async function getSchedules(): Promise<Schedule[]> {
   try {
-    // Our SQL shows that schedules has the columns:
-    // room_id, start_time, user_id, updated_at, end_time, created_at, id
-    // We need to make sure we handle these correctly
-    
-    // First, check if the activity_logs table exists
+    // Check if the schedules table exists
     const { error: tablesError } = await supabase
       .from('schedules')
       .select('*')
@@ -70,15 +66,16 @@ export async function getSchedules(): Promise<Schedule[]> {
       return [];
     }
     
-    // Get all users for the join
+    // Get users for mapping
     const { data: users } = await supabase
       .from('users')
-      .select('id, name');
+      .select('id, username');
     
     const userMap = new Map();
     if (users) {
       users.forEach(user => {
-        userMap.set(user.id, user.name);
+        // Use username instead of name
+        userMap.set(user.id, user.username);
       });
     }
     
@@ -153,17 +150,19 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
     // Update room status to reserved
     await updateRoomStatus(schedule.roomId, 'reserved');
     
-    // Log this activity
-    await createActivityLog({
+    // Log this activity (skipping actual database insertion for now)
+    const activityLogData = {
       roomId: schedule.roomId,
       roomName: `Room ${schedule.roomId}`,
       userId: schedule.userId,
       userName: schedule.userName,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-      status: 'reserved',
+      status: 'reserved' as const,
       details: `Room reserved: ${schedule.title}`
-    });
+    };
+    
+    console.log('Activity logged (not saved to database):', activityLogData);
     
     // Format the returned schedule to match our type definition
     return {
@@ -184,41 +183,22 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
   }
 }
 
-// Activity Log APIs
+// Activity Log APIs - Stub implementation for now as the table doesn't exist
 export async function getActivityLogs(): Promise<ActivityLog[]> {
+  console.log('Checking for activity_logs table');
   try {
-    // First, check if the activity_logs table exists
-    const { error: tablesError } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .limit(1);
+    // Try to check if the activity_logs table exists without actually querying it
+    const { error } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
     
-    if (tablesError) {
-      console.error('Error checking activity_logs table:', tablesError);
+    if (error) {
+      console.error('Error checking activity_logs table:', error);
       // Table might not exist yet
       return [];
     }
     
-    const { data, error } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      throw error;
-    }
-    
-    return data.map(log => ({
-      id: log.id.toString(),
-      roomId: log.room_id,
-      roomName: log.room_name,
-      userId: log.user_id ? log.user_id.toString() : '',
-      userName: log.user_name,
-      date: log.date,
-      time: log.time,
-      status: log.status as 'available' | 'in-use' | 'reserved',
-      details: log.details
-    }));
+    // If we're here, the table might exist, but since it's not in the provided schema,
+    // we'll just return an empty array to avoid errors
+    return [];
   } catch (error) {
     console.error('Error fetching activity logs:', error);
     toast.error('Failed to load activity logs');
@@ -227,61 +207,12 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
 }
 
 export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
-  try {
-    // First, check if the activity_logs table exists
-    const { error: tablesError } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .limit(1);
-    
-    if (tablesError) {
-      console.error('Table activity_logs not found, skipping log creation');
-      // Just return a mock for now to avoid errors
-      return {
-        id: '0',
-        ...log
-      };
-    }
-    
-    const { data, error } = await supabase
-      .from('activity_logs')
-      .insert({
-        room_id: log.roomId,
-        room_name: log.roomName,
-        user_id: log.userId ? log.userId : null, // Handle nullable user_id
-        user_name: log.userName,
-        date: log.date,
-        time: log.time,
-        status: log.status,
-        details: log.details
-      })
-      .select()
-      .single();
-      
-    if (error) {
-      throw error;
-    }
-    
-    return {
-      id: data.id.toString(),
-      roomId: data.room_id,
-      roomName: data.room_name,
-      userId: data.user_id ? data.user_id.toString() : '',
-      userName: data.user_name,
-      date: data.date,
-      time: data.time,
-      status: data.status as 'available' | 'in-use' | 'reserved',
-      details: data.details
-    };
-  } catch (error) {
-    console.error('Error creating activity log:', error);
-    toast.error('Failed to log activity');
-    // Return a mock object to prevent errors in the UI
-    return {
-      id: '0',
-      ...log
-    };
-  }
+  // Since the activity_logs table doesn't exist yet, just return a mock object
+  console.log('Activity log creation requested (not implemented):', log);
+  return {
+    id: '0',
+    ...log
+  };
 }
 
 // User APIs
@@ -290,7 +221,7 @@ export async function getUsers(): Promise<User[]> {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .order('name');
+      .order('username'); // Order by username instead of name
       
     if (error) {
       throw error;
@@ -298,7 +229,7 @@ export async function getUsers(): Promise<User[]> {
     
     return data.map(user => ({
       id: user.id.toString(),
-      name: user.name,
+      name: user.username, // Use username as the name
       email: user.email,
       role: user.role as 'admin' | 'faculty' | 'guest'
     }));
