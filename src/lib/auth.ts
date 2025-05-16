@@ -23,10 +23,11 @@ export async function signIn(email: string, password: string): Promise<User | nu
     }
 
     if (data.user) {
+      // Use the numeric ID directly from the database
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', data.user.id)
+        .eq('id', parseInt(data.user.id))
         .single();
 
       if (userError) {
@@ -87,10 +88,11 @@ export async function getSession(): Promise<AuthSession> {
     }
     
     if (data?.session) {
+      // Use the numeric ID directly from the database
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', data.session.user.id)
+        .eq('id', parseInt(data.session.user.id))
         .single();
 
       if (userError) {
@@ -134,7 +136,7 @@ export function initAuth(callback: (user: User | null) => void): (() => void) {
         const { data, error } = await supabase
           .from('users')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', parseInt(session.user.id))
           .single();
 
         if (error) {

@@ -11,6 +11,9 @@ setupActivityLogsTable().then(success => {
   } else {
     console.warn('Activity logs table setup failed, some features may not work');
   }
+}).catch(error => {
+  console.error('Error during activity logs setup:', error);
+  console.warn('Activity logs table setup failed, some features may not work');
 });
 
 // Execute the SQL from dbSetup.sql if needed

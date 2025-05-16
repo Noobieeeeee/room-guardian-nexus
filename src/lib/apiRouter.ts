@@ -1,25 +1,49 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import fs from 'fs';
-import path from 'path';
+import { Room, Schedule, ActivityLog } from './types';
+import { toast } from 'sonner';
 
-export async function setupSQLFunctions(req: Request): Promise<Response> {
+// Example API router utility functions for direct database access
+// These can be used as an alternative approach to the main API functions
+
+// Activity Log API using RPC
+export async function logActivity(activity: Omit<ActivityLog, 'id'>): Promise<boolean> {
   try {
-    // Load SQL from file
-    const sqlPath = path.join(process.cwd(), 'src', 'lib', 'dbSetup.sql');
-    const sql = fs.readFileSync(sqlPath, 'utf8');
+    // Check if table exists first
+    const { data: tableExists, error: checkError } = await supabase.rpc(
+      'check_table_exists', 
+      { table_name: 'activity_logs' }
+    );
     
-    // Execute the SQL directly (in a production app, you'd want to use migrations)
-    const { error } = await supabase.rpc('exec_sql', { sql });
-    
-    if (error) {
-      console.error('Error executing SQL setup:', error);
-      return new Response('SQL setup failed', { status: 500 });
+    if (checkError || !tableExists) {
+      console.error('Activity logs table may not exist:', checkError);
+      return false;
     }
     
-    return new Response('SQL setup completed', { status: 200 });
+    // Use RPC function to insert log
+    const { data, error } = await supabase.rpc(
+      'insert_activity_log',
+      {
+        p_room_id: activity.roomId,
+        p_room_name: activity.roomName,
+        p_user_id: activity.userId ? parseInt(activity.userId) : null,
+        p_user_name: activity.userName,
+        p_date: activity.date,
+        p_time: activity.time,
+        p_status: activity.status,
+        p_details: activity.details || ''
+      }
+    );
+    
+    if (error) {
+      throw error;
+    }
+    
+    return true;
   } catch (error) {
-    console.error('Error in SQL setup endpoint:', error);
-    return new Response('Internal server error', { status: 500 });
+    console.error('Error logging activity:', error);
+    return false;
   }
 }
+
+// Additional API router methods can be added here as needed

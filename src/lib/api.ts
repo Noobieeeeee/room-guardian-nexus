@@ -79,23 +79,27 @@ export async function getSchedules(): Promise<Schedule[]> {
     if (!data) return [];
     
     return data.map(schedule => {
-      // If date is missing, extract it from start_time
-      const dateStr = schedule.date 
-        ? schedule.date 
-        : new Date(schedule.start_time).toISOString().split('T')[0];
+      // Extract date part from start_time if date field is missing
+      const dateStr = schedule.date ? 
+        schedule.date : 
+        new Date(schedule.start_time).toISOString().split('T')[0];
       
       // Extract time parts from timestamps
-      const startTime = schedule.start_time.split('T')[1].substring(0, 5);
-      const endTime = schedule.end_time.split('T')[1].substring(0, 5);
+      const startTime = schedule.start_time.split('T')[1]?.substring(0, 5) || '00:00';
+      const endTime = schedule.end_time.split('T')[1]?.substring(0, 5) || '00:00';
       
       // Get the user's name from our map, schedule.user_name, or use a fallback
       const userName = schedule.user_name || userMap.get(schedule.user_id) || 'Unknown User';
       
+      // Handle optional fields that may not exist in all records
+      const title = schedule.title || `Room Booking #${schedule.id}`;
+      const description = schedule.description || '';
+      
       return {
         id: schedule.id.toString(),
         roomId: schedule.room_id,
-        title: schedule.title || `Room Booking #${schedule.id}`,
-        description: schedule.description || '',
+        title: title,
+        description: description,
         userId: schedule.user_id.toString(), // Convert to string to match our type definition
         userName: userName,
         date: dateStr,
@@ -175,20 +179,21 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
 // Activity Log APIs
 export async function getActivityLogs(): Promise<ActivityLog[]> {
   try {
-    // Check if activity_logs table exists using our RPC function
-    const { error: checkError } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
+    // First check if the table exists using our RPC function
+    const { data: tableExists, error: checkError } = await supabase.rpc(
+      'check_table_exists', 
+      { table_name: 'activity_logs' }
+    );
     
-    if (checkError) {
+    if (checkError || !tableExists) {
       console.error('Error checking activity_logs table:', checkError);
       // Table might not exist yet
       return [];
     }
     
-    // Use a type assertion to handle non-typed tables
+    // Use the RPC function instead of direct table access
     const { data, error } = await supabase.rpc(
-      'query_activity_logs', 
-      {}, 
-      { count: 'exact' }
+      'query_activity_logs'
     );
     
     if (error) {
@@ -223,9 +228,12 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
 export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
   try {
     // Check if activity_logs table exists
-    const { error: checkError } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
+    const { data: tableExists, error: checkError } = await supabase.rpc(
+      'check_table_exists', 
+      { table_name: 'activity_logs' }
+    );
     
-    if (checkError) {
+    if (checkError || !tableExists) {
       console.error('Activity logs table may not exist:', checkError);
       // Return mock object since we can't log
       return {
@@ -234,8 +242,8 @@ export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<A
       };
     }
     
-    // Insert activity log using RPC since direct table access might not be typed
-    const { data, error } = await supabase.rpc(
+    // Insert activity log using RPC
+    const { data: logId, error } = await supabase.rpc(
       'insert_activity_log', 
       { 
         p_room_id: log.roomId,
@@ -254,9 +262,9 @@ export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<A
     }
     
     // If we successfully inserted the log, return a properly formatted object
-    if (data && typeof data === 'number') {
+    if (logId && typeof logId === 'number') {
       return {
-        id: data.toString(),
+        id: logId.toString(),
         ...log
       };
     }
