@@ -55,17 +55,6 @@ export async function updateRoomStatus(roomId: number, status: 'available' | 'in
 // Schedule APIs
 export async function getSchedules(): Promise<Schedule[]> {
   try {
-    // Check if the schedules table exists
-    const { error: tablesError } = await supabase
-      .from('schedules')
-      .select('*')
-      .limit(1);
-    
-    if (tablesError) {
-      console.error('Error checking schedules table:', tablesError);
-      return [];
-    }
-    
     // Get users for mapping
     const { data: users } = await supabase
       .from('users')
@@ -81,23 +70,13 @@ export async function getSchedules(): Promise<Schedule[]> {
     
     const { data, error } = await supabase
       .from('schedules')
-      .select(`
-        id, 
-        room_id,
-        start_time,
-        end_time,
-        user_id,
-        title,
-        description,
-        user_name,
-        date,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
+      .select('*');
       
     if (error) {
       throw error;
     }
+    
+    if (!data) return [];
     
     return data.map(schedule => {
       // If date is missing, extract it from start_time
@@ -161,7 +140,6 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
     
     // Log this activity
     await createActivityLog({
-      id: '0', // This will be replaced by the server
       roomId: schedule.roomId,
       roomName: `Room ${schedule.roomId}`,
       userId: schedule.userId,
@@ -197,44 +175,44 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
 // Activity Log APIs
 export async function getActivityLogs(): Promise<ActivityLog[]> {
   try {
-    // Try to check if the activity_logs table exists
-    const { error } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
+    // Check if activity_logs table exists using our RPC function
+    const { error: checkError } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
     
-    if (error) {
-      console.error('Error checking activity_logs table:', error);
+    if (checkError) {
+      console.error('Error checking activity_logs table:', checkError);
       // Table might not exist yet
       return [];
     }
     
-    // If the table exists, try to query it
-    try {
-      const { data, error: queryError } = await supabase.from('activity_logs')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (queryError) {
-        throw queryError;
-      }
-      
-      if (!data) {
-        return [];
-      }
-      
-      return data.map(log => ({
-        id: log.id.toString(),
-        roomId: log.room_id,
-        roomName: log.room_name,
-        userId: log.user_id ? log.user_id.toString() : '',
-        userName: log.user_name,
-        date: log.date,
-        time: log.time,
-        status: log.status as 'available' | 'in-use' | 'reserved',
-        details: log.details || ''
-      }));
-    } catch (queryErr) {
-      console.error('Error querying activity_logs:', queryErr);
+    // Use a type assertion to handle non-typed tables
+    const { data, error } = await supabase.rpc(
+      'query_activity_logs', 
+      {}, 
+      { count: 'exact' }
+    );
+    
+    if (error) {
+      console.error('Error querying activity_logs:', error);
       return [];
     }
+    
+    // If no data, return empty array
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+    
+    // Process the data safely with type checking
+    return data.map(log => ({
+      id: log.id?.toString() || '0',
+      roomId: log.room_id || 0,
+      roomName: log.room_name || 'Unknown Room',
+      userId: log.user_id ? log.user_id.toString() : '',
+      userName: log.user_name || 'Unknown User',
+      date: log.date || new Date().toISOString().split('T')[0],
+      time: log.time || '00:00',
+      status: (log.status as 'available' | 'in-use' | 'reserved') || 'available',
+      details: log.details || ''
+    }));
   } catch (error) {
     console.error('Error fetching activity logs:', error);
     toast.error('Failed to load activity logs');
@@ -256,45 +234,38 @@ export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<A
       };
     }
     
-    // Insert the activity log
-    try {
-      const { data, error: insertError } = await supabase.from('activity_logs')
-        .insert({
-          room_id: log.roomId,
-          room_name: log.roomName,
-          user_id: log.userId ? parseInt(log.userId) : null,
-          user_name: log.userName,
-          date: log.date,
-          time: log.time,
-          status: log.status,
-          details: log.details
-        })
-        .select()
-        .single();
-        
-      if (insertError) {
-        throw insertError;
+    // Insert activity log using RPC since direct table access might not be typed
+    const { data, error } = await supabase.rpc(
+      'insert_activity_log', 
+      { 
+        p_room_id: log.roomId,
+        p_room_name: log.roomName,
+        p_user_id: log.userId ? parseInt(log.userId) : null,
+        p_user_name: log.userName,
+        p_date: log.date,
+        p_time: log.time,
+        p_status: log.status,
+        p_details: log.details || ''
       }
-      
+    );
+    
+    if (error) {
+      throw error;
+    }
+    
+    // If we successfully inserted the log, return a properly formatted object
+    if (data && typeof data === 'number') {
       return {
-        id: data.id.toString(),
-        roomId: data.room_id,
-        roomName: data.room_name,
-        userId: data.user_id ? data.user_id.toString() : '',
-        userName: data.user_name,
-        date: data.date,
-        time: data.time,
-        status: data.status as 'available' | 'in-use' | 'reserved',
-        details: data.details || ''
-      };
-    } catch (insertErr) {
-      console.error('Error inserting activity log:', insertErr);
-      // Return mock object on failure
-      return {
-        id: '0',
+        id: data.toString(),
         ...log
       };
     }
+    
+    // Return a mock object with the log data if insert didn't return an ID
+    return {
+      id: '0',
+      ...log
+    };
   } catch (error) {
     console.error('Error creating activity log:', error);
     // Return mock object on failure

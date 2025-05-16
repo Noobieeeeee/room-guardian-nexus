@@ -7,13 +7,14 @@ import { supabase } from '@/integrations/supabase/client';
 export async function setupActivityLogsTable(): Promise<boolean> {
   try {
     // Create check_table_exists function if it doesn't exist
-    await supabase.rpc('create_check_table_exists_function', {}, { count: 'none' })
-      .catch(() => {
+    await supabase.rpc('create_check_table_exists_function')
+      .catch((err) => {
         // Function may already exist, ignore error
+        console.log('Function may already exist:', err);
       });
 
     // Create the activity_logs table if it doesn't exist
-    const { error } = await supabase.rpc('create_activity_logs_table', {}, { count: 'none' });
+    const { data, error } = await supabase.rpc('create_activity_logs_table');
     
     if (error) {
       console.error('Error creating activity_logs table:', error);
