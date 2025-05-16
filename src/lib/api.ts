@@ -15,14 +15,19 @@ export async function getRooms(): Promise<Room[]> {
       throw error;
     }
     
+    if (!data || !Array.isArray(data)) {
+      console.error('Unexpected data format for rooms:', data);
+      return [];
+    }
+    
     return data.map(room => ({
       id: room.id,
       name: room.name,
       status: room.status as 'available' | 'in-use' | 'reserved',
-      currentDraw: room.current_draw,
+      currentDraw: room.current_draw || 0,
       lastUpdated: room.last_updated
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching rooms:', error);
     toast.error('Failed to load rooms');
     return [];
@@ -45,7 +50,7 @@ export async function updateRoomStatus(roomId: number, status: 'available' | 'in
     }
     
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating room status:', error);
     toast.error('Failed to update room status');
     return false;
@@ -61,7 +66,7 @@ export async function getSchedules(): Promise<Schedule[]> {
       .select('id, username');
     
     const userMap = new Map();
-    if (users) {
+    if (users && Array.isArray(users)) {
       users.forEach(user => {
         // Use username instead of name
         userMap.set(user.id, user.username);
@@ -76,7 +81,10 @@ export async function getSchedules(): Promise<Schedule[]> {
       throw error;
     }
     
-    if (!data) return [];
+    if (!data || !Array.isArray(data)) {
+      console.error('Unexpected data format for schedules:', data);
+      return [];
+    }
     
     return data.map(schedule => {
       // Extract date part from start_time if date field is missing
@@ -107,7 +115,7 @@ export async function getSchedules(): Promise<Schedule[]> {
         endTime: endTime
       };
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching schedules:', error);
     toast.error('Failed to load schedules');
     return [];
@@ -136,7 +144,13 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
       .single();
       
     if (error) {
+      console.error('Error inserting schedule:', error);
       throw error;
+    }
+    
+    if (!data) {
+      console.error('No data returned after schedule insert');
+      throw new Error('Failed to create schedule');
     }
     
     // Update room status to reserved
@@ -169,9 +183,9 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
       startTime: schedule.startTime,
       endTime: schedule.endTime
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating schedule:', error);
-    toast.error('Failed to create schedule');
+    toast.error(error.message || 'Failed to create schedule');
     return null;
   }
 }
@@ -179,12 +193,12 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
 // Activity Log APIs
 export async function getActivityLogs(): Promise<ActivityLog[]> {
   try {
-    // Use the RPC function instead of direct table access
+    // Use RPC function to query logs
     const { data, error } = await supabase.rpc('query_activity_logs');
     
     if (error) {
       console.error('Error querying activity_logs:', error);
-      return [];
+      throw error;
     }
     
     // If no data, return empty array
@@ -204,7 +218,7 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
       status: (log.status as 'available' | 'in-use' | 'reserved') || 'available',
       details: log.details || ''
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching activity logs:', error);
     toast.error('Failed to load activity logs');
     return [];
@@ -229,6 +243,7 @@ export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<A
     );
     
     if (error) {
+      console.error('Error inserting activity log:', error);
       throw error;
     }
     
@@ -245,7 +260,7 @@ export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<A
       id: '0',
       ...log
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating activity log:', error);
     // Return mock object on failure
     return {
@@ -267,13 +282,17 @@ export async function getUsers(): Promise<User[]> {
       throw error;
     }
     
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+    
     return data.map(user => ({
       id: user.id.toString(),
       name: user.username,
       email: user.email,
       role: user.role as 'admin' | 'faculty' | 'guest'
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching users:', error);
     toast.error('Failed to load users');
     return [];

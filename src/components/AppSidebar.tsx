@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import { UserRole } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { LayoutDashboard, Settings, Activity, LogOut } from 'lucide-react';
+import { signOut } from '@/lib/auth';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface AppSidebarProps {
   userRole: UserRole;
@@ -23,6 +26,7 @@ interface AppSidebarProps {
 const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
   const location = useLocation();
   const { state } = useSidebar();
+  const navigate = useNavigate();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -49,9 +53,12 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
     },
   ];
 
-  const handleLogout = () => {
-    // In a real app, implement logout logic here
-    window.location.href = '/';
+  const handleLogout = async () => {
+    const success = await signOut();
+    if (success) {
+      toast.success('Logged out successfully');
+      navigate('/');
+    }
   };
 
   return (

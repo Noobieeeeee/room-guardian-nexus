@@ -22,7 +22,9 @@ export async function signIn(email: string, password: string): Promise<User | nu
       .single();
 
     if (error) {
-      throw error;
+      console.error('Authentication error:', error);
+      toast.error('Invalid email or password');
+      return null;
     }
 
     if (data) {
@@ -33,11 +35,15 @@ export async function signIn(email: string, password: string): Promise<User | nu
         role: data.role as 'admin' | 'faculty' | 'guest'
       };
       
+      // Store user in localStorage for persistence
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
       return user;
     }
     
+    toast.error('Invalid email or password');
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Authentication error:', error);
     toast.error(error.message || 'Failed to sign in');
     return null;
@@ -47,7 +53,7 @@ export async function signIn(email: string, password: string): Promise<User | nu
 /**
  * Signs out the current user
  */
-export async function signOut(): Promise<void> {
+export async function signOut(): Promise<boolean> {
   try {
     // Remove user from local storage
     localStorage.removeItem('currentUser');
@@ -58,9 +64,12 @@ export async function signOut(): Promise<void> {
         localStorage.removeItem(key);
       }
     });
-  } catch (error) {
+
+    return true;
+  } catch (error: any) {
     console.error('Sign out error:', error);
     toast.error(error.message || 'Failed to sign out');
+    return false;
   }
 }
 
@@ -78,7 +87,7 @@ export async function getSession(): Promise<AuthSession> {
     }
     
     return { user: null, session: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Session error:', error);
     return { user: null, session: null };
   }

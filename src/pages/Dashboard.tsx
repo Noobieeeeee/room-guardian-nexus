@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -39,8 +40,17 @@ const Dashboard: React.FC = () => {
           getSchedules()
         ]);
         
-        setRooms(roomsData);
-        setSchedules(schedulesData);
+        if (roomsData && Array.isArray(roomsData)) {
+          setRooms(roomsData);
+        } else {
+          console.error('Invalid rooms data:', roomsData);
+        }
+        
+        if (schedulesData && Array.isArray(schedulesData)) {
+          setSchedules(schedulesData);
+        } else {
+          console.error('Invalid schedules data:', schedulesData);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load dashboard data');
@@ -54,7 +64,9 @@ const Dashboard: React.FC = () => {
     // Simulate real-time updates by polling
     const interval = setInterval(() => {
       getRooms().then(updatedRooms => {
-        setRooms(updatedRooms);
+        if (updatedRooms && Array.isArray(updatedRooms)) {
+          setRooms(updatedRooms);
+        }
       });
     }, 5000);
     
@@ -118,7 +130,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">

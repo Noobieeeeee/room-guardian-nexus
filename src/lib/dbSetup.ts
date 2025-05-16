@@ -23,7 +23,7 @@ export async function setupActivityLogsTable(): Promise<boolean> {
     }
     
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during activity logs setup:', error);
     return false;
   }
