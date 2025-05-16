@@ -77,6 +77,14 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
       return;
     }
 
+    // Ensure user has a valid ID
+    if (!user || !user.id) {
+      setError('User information is missing. Please log in again.');
+      return;
+    }
+    
+    console.log('User creating schedule:', user);
+    
     const newSchedule: Omit<Schedule, 'id'> = {
       roomId,
       title,
@@ -87,7 +95,9 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
       startTime,
       endTime,
     };
-
+    
+    console.log('Creating new schedule with:', newSchedule);
+    
     onSave(newSchedule);
     resetForm();
     onClose();

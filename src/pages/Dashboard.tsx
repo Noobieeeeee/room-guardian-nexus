@@ -24,9 +24,18 @@ const Dashboard: React.FC = () => {
     // Check for logged in user
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      try {
+        const user = JSON.parse(storedUser);
+        console.log('Current user from localStorage:', user);
+        setCurrentUser(user);
+      } catch (e) {
+        console.error('Failed to parse user from localStorage:', e);
+        navigate('/');
+        return;
+      }
     } else {
       // No user found, redirect to login
+      console.log('No user found in localStorage, redirecting to login');
       navigate('/');
       return;
     }
@@ -80,6 +89,13 @@ const Dashboard: React.FC = () => {
 
   const handleSaveSchedule = async (newSchedule: Omit<Schedule, 'id'>) => {
     try {
+      console.log('Saving schedule with data:', newSchedule);
+      
+      if (!currentUser) {
+        toast.error('You must be logged in to create a schedule');
+        return;
+      }
+      
       const createdSchedule = await createSchedule(newSchedule);
       
       if (createdSchedule) {

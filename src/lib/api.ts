@@ -124,22 +124,34 @@ export async function getSchedules(): Promise<Schedule[]> {
 
 export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Schedule | null> {
   try {
+    console.log('Creating schedule with data:', schedule);
+    // Ensure user_id is properly parsed as an integer
+    const userId = parseInt(schedule.userId);
+    
+    if (isNaN(userId)) {
+      throw new Error('Invalid user ID: must be a number');
+    }
+    
     // Get the formatted date in ISO format for start and end times
     const startDateTime = `${schedule.date}T${schedule.startTime}:00`;
     const endDateTime = `${schedule.date}T${schedule.endTime}:00`;
     
+    const insertData = {
+      room_id: schedule.roomId,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      user_id: userId,  // Explicitly ensure this is a number
+      title: schedule.title,
+      description: schedule.description || '',
+      user_name: schedule.userName,
+      date: schedule.date
+    };
+    
+    console.log('Inserting schedule with data:', insertData);
+    
     const { data, error } = await supabase
       .from('schedules')
-      .insert({
-        room_id: schedule.roomId,
-        start_time: startDateTime,
-        end_time: endDateTime,
-        user_id: parseInt(schedule.userId),
-        title: schedule.title,
-        description: schedule.description,
-        user_name: schedule.userName,
-        date: schedule.date
-      })
+      .insert(insertData)
       .select()
       .single();
       
@@ -227,13 +239,23 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
 
 export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
   try {
+    // Ensure user_id is properly formatted as an integer if present
+    let userId = null;
+    if (log.userId) {
+      userId = parseInt(log.userId);
+      if (isNaN(userId)) {
+        console.warn('Invalid user ID format for activity log, setting to null');
+        userId = null;
+      }
+    }
+    
     // Insert activity log using RPC
     const { data: logId, error } = await supabase.rpc(
       'insert_activity_log', 
       { 
         p_room_id: log.roomId,
         p_room_name: log.roomName,
-        p_user_id: log.userId ? parseInt(log.userId) : null,
+        p_user_id: userId,
         p_user_name: log.userName,
         p_date: log.date,
         p_time: log.time,
