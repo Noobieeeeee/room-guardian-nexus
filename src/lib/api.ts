@@ -87,6 +87,10 @@ export async function getSchedules(): Promise<Schedule[]> {
         start_time,
         end_time,
         user_id,
+        title,
+        description,
+        user_name,
+        date,
         created_at
       `)
       .order('created_at', { ascending: false });
@@ -96,22 +100,23 @@ export async function getSchedules(): Promise<Schedule[]> {
     }
     
     return data.map(schedule => {
-      // Extract date part from the timestamp
-      const startDate = new Date(schedule.start_time);
-      const dateStr = startDate.toISOString().split('T')[0];
+      // If date is missing, extract it from start_time
+      const dateStr = schedule.date 
+        ? schedule.date 
+        : new Date(schedule.start_time).toISOString().split('T')[0];
       
       // Extract time parts from timestamps
       const startTime = schedule.start_time.split('T')[1].substring(0, 5);
       const endTime = schedule.end_time.split('T')[1].substring(0, 5);
       
-      // Get the user's name from our map or use a fallback
-      const userName = userMap.get(schedule.user_id) || 'Unknown User';
+      // Get the user's name from our map, schedule.user_name, or use a fallback
+      const userName = schedule.user_name || userMap.get(schedule.user_id) || 'Unknown User';
       
       return {
         id: schedule.id.toString(),
         roomId: schedule.room_id,
-        title: `Room Booking #${schedule.id}`, // Default title since we don't have this column
-        description: '', // Default empty description since we don't have this column
+        title: schedule.title || `Room Booking #${schedule.id}`,
+        description: schedule.description || '',
         userId: schedule.user_id.toString(), // Convert to string to match our type definition
         userName: userName,
         date: dateStr,
@@ -138,7 +143,11 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
         room_id: schedule.roomId,
         start_time: startDateTime,
         end_time: endDateTime,
-        user_id: parseInt(schedule.userId) // Convert string ID to number for the database
+        user_id: parseInt(schedule.userId), // Convert string ID to number for the database
+        title: schedule.title,
+        description: schedule.description,
+        user_name: schedule.userName,
+        date: schedule.date
       })
       .select()
       .single();
@@ -150,29 +159,31 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
     // Update room status to reserved
     await updateRoomStatus(schedule.roomId, 'reserved');
     
-    // Log this activity (skipping actual database insertion for now)
-    const activityLogData = {
+    // Log this activity
+    await createActivityLog({
+      id: '0', // This will be replaced by the server
       roomId: schedule.roomId,
       roomName: `Room ${schedule.roomId}`,
       userId: schedule.userId,
       userName: schedule.userName,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-      status: 'reserved' as const,
+      status: 'reserved',
       details: `Room reserved: ${schedule.title}`
-    };
-    
-    console.log('Activity logged (not saved to database):', activityLogData);
+    }).catch(err => {
+      // Log but don't fail if activity logging fails
+      console.error('Failed to log activity:', err);
+    });
     
     // Format the returned schedule to match our type definition
     return {
       id: data.id.toString(),
       roomId: data.room_id,
-      title: schedule.title,
-      description: schedule.description,
+      title: data.title || `Room Booking #${data.id}`,
+      description: data.description || '',
       userId: data.user_id.toString(), // Convert to string to match our type
-      userName: schedule.userName, 
-      date: schedule.date,
+      userName: data.user_name || schedule.userName, 
+      date: data.date || schedule.date,
       startTime: schedule.startTime,
       endTime: schedule.endTime
     };
@@ -183,11 +194,10 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
   }
 }
 
-// Activity Log APIs - Stub implementation for now as the table doesn't exist
+// Activity Log APIs
 export async function getActivityLogs(): Promise<ActivityLog[]> {
-  console.log('Checking for activity_logs table');
   try {
-    // Try to check if the activity_logs table exists without actually querying it
+    // Try to check if the activity_logs table exists
     const { error } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
     
     if (error) {
@@ -196,9 +206,35 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
       return [];
     }
     
-    // If we're here, the table might exist, but since it's not in the provided schema,
-    // we'll just return an empty array to avoid errors
-    return [];
+    // If the table exists, try to query it
+    try {
+      const { data, error: queryError } = await supabase.from('activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (queryError) {
+        throw queryError;
+      }
+      
+      if (!data) {
+        return [];
+      }
+      
+      return data.map(log => ({
+        id: log.id.toString(),
+        roomId: log.room_id,
+        roomName: log.room_name,
+        userId: log.user_id ? log.user_id.toString() : '',
+        userName: log.user_name,
+        date: log.date,
+        time: log.time,
+        status: log.status as 'available' | 'in-use' | 'reserved',
+        details: log.details || ''
+      }));
+    } catch (queryErr) {
+      console.error('Error querying activity_logs:', queryErr);
+      return [];
+    }
   } catch (error) {
     console.error('Error fetching activity logs:', error);
     toast.error('Failed to load activity logs');
@@ -207,12 +243,66 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
 }
 
 export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
-  // Since the activity_logs table doesn't exist yet, just return a mock object
-  console.log('Activity log creation requested (not implemented):', log);
-  return {
-    id: '0',
-    ...log
-  };
+  try {
+    // Check if activity_logs table exists
+    const { error: checkError } = await supabase.rpc('check_table_exists', { table_name: 'activity_logs' });
+    
+    if (checkError) {
+      console.error('Activity logs table may not exist:', checkError);
+      // Return mock object since we can't log
+      return {
+        id: '0',
+        ...log
+      };
+    }
+    
+    // Insert the activity log
+    try {
+      const { data, error: insertError } = await supabase.from('activity_logs')
+        .insert({
+          room_id: log.roomId,
+          room_name: log.roomName,
+          user_id: log.userId ? parseInt(log.userId) : null,
+          user_name: log.userName,
+          date: log.date,
+          time: log.time,
+          status: log.status,
+          details: log.details
+        })
+        .select()
+        .single();
+        
+      if (insertError) {
+        throw insertError;
+      }
+      
+      return {
+        id: data.id.toString(),
+        roomId: data.room_id,
+        roomName: data.room_name,
+        userId: data.user_id ? data.user_id.toString() : '',
+        userName: data.user_name,
+        date: data.date,
+        time: data.time,
+        status: data.status as 'available' | 'in-use' | 'reserved',
+        details: data.details || ''
+      };
+    } catch (insertErr) {
+      console.error('Error inserting activity log:', insertErr);
+      // Return mock object on failure
+      return {
+        id: '0',
+        ...log
+      };
+    }
+  } catch (error) {
+    console.error('Error creating activity log:', error);
+    // Return mock object on failure
+    return {
+      id: '0',
+      ...log
+    };
+  }
 }
 
 // User APIs

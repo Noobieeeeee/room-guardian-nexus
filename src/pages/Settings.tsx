@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -50,13 +49,18 @@ const Settings: React.FC = () => {
     
     try {
       // Update user in Supabase
+      const userId = parseInt(currentUser.id);
+      if (isNaN(userId)) {
+        throw new Error('Invalid user ID');
+      }
+      
       const { error } = await supabase
         .from('users')
         .update({
-          name,
+          username: name,
           email
         })
-        .eq('id', currentUser.id);
+        .eq('id', userId);
         
       if (error) throw error;
       

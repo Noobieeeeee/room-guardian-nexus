@@ -35,7 +35,7 @@ export async function signIn(email: string, password: string): Promise<User | nu
       }
 
       return {
-        id: userData.id,
+        id: userData.id.toString(), // Convert to string to match User type
         name: userData.username, // Use username field as name
         email: userData.email,
         role: userData.role as 'admin' | 'faculty' | 'guest'
@@ -99,7 +99,7 @@ export async function getSession(): Promise<AuthSession> {
       }
 
       const user: User = {
-        id: userData.id,
+        id: userData.id.toString(), // Convert to string to match User type
         name: userData.username, // Use username field as name
         email: userData.email,
         role: userData.role as 'admin' | 'faculty' | 'guest'
@@ -144,7 +144,7 @@ export function initAuth(callback: (user: User | null) => void): (() => void) {
         }
 
         const user: User = {
-          id: data.id,
+          id: data.id.toString(), // Convert to string to match User type
           name: data.username, // Use username field as name
           email: data.email,
           role: data.role as 'admin' | 'faculty' | 'guest'
