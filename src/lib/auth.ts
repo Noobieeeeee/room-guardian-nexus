@@ -13,34 +13,27 @@ export type AuthSession = {
  */
 export async function signIn(email: string, password: string): Promise<User | null> {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Get user by email and password (direct DB query since we don't use Supabase Auth)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('password_hash', password)
+      .single();
 
     if (error) {
       throw error;
     }
 
-    if (data.user) {
-      // Use the numeric ID directly from the database
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', parseInt(data.user.id))
-        .single();
-
-      if (userError) {
-        console.error('Error fetching user data:', userError);
-        return null;
-      }
-
-      return {
-        id: userData.id.toString(), // Convert to string to match User type
-        name: userData.username, // Use username field as name
-        email: userData.email,
-        role: userData.role as 'admin' | 'faculty' | 'guest'
+    if (data) {
+      const user: User = {
+        id: data.id.toString(), // Convert numeric ID to string
+        name: data.username,
+        email: data.email,
+        role: data.role as 'admin' | 'faculty' | 'guest'
       };
+      
+      return user;
     }
     
     return null;
@@ -56,11 +49,6 @@ export async function signIn(email: string, password: string): Promise<User | nu
  */
 export async function signOut(): Promise<void> {
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
-    }
-    
     // Remove user from local storage
     localStorage.removeItem('currentUser');
     
@@ -81,33 +69,12 @@ export async function signOut(): Promise<void> {
  */
 export async function getSession(): Promise<AuthSession> {
   try {
-    const { data, error } = await supabase.auth.getSession();
+    // Check localStorage for user
+    const storedUser = localStorage.getItem('currentUser');
     
-    if (error) {
-      throw error;
-    }
-    
-    if (data?.session) {
-      // Use the numeric ID directly from the database
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', parseInt(data.session.user.id))
-        .single();
-
-      if (userError) {
-        console.error('Error fetching user data:', userError);
-        return { user: null, session: data.session };
-      }
-
-      const user: User = {
-        id: userData.id.toString(), // Convert to string to match User type
-        name: userData.username, // Use username field as name
-        email: userData.email,
-        role: userData.role as 'admin' | 'faculty' | 'guest'
-      };
-
-      return { user, session: data.session };
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      return { user, session: {} }; // Return mock session
     }
     
     return { user: null, session: null };
@@ -126,40 +93,9 @@ export function initAuth(callback: (user: User | null) => void): (() => void) {
     callback(user);
   });
   
-  // Listen for auth changes
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      // Defer fetching user data to prevent potential deadlocks
-      setTimeout(async () => {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', parseInt(session.user.id))
-          .single();
-
-        if (error) {
-          console.error('Error fetching user data:', error);
-          callback(null);
-          return;
-        }
-
-        const user: User = {
-          id: data.id.toString(), // Convert to string to match User type
-          name: data.username, // Use username field as name
-          email: data.email,
-          role: data.role as 'admin' | 'faculty' | 'guest'
-        };
-        
-        callback(user);
-      }, 0);
-    } else if (event === 'SIGNED_OUT') {
-      callback(null);
-    }
-  });
-
+  // No need for auth state change listener since we're using localStorage directly
+  
   return () => {
-    subscription.unsubscribe();
+    // Cleanup function
   };
 }

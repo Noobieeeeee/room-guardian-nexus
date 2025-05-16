@@ -18,7 +18,7 @@ export async function getRooms(): Promise<Room[]> {
     return data.map(room => ({
       id: room.id,
       name: room.name,
-      status: room.status as 'available' | 'in-use' | 'reserved', // Cast to match RoomStatus type
+      status: room.status as 'available' | 'in-use' | 'reserved',
       currentDraw: room.current_draw,
       lastUpdated: room.last_updated
     }));
@@ -100,7 +100,7 @@ export async function getSchedules(): Promise<Schedule[]> {
         roomId: schedule.room_id,
         title: title,
         description: description,
-        userId: schedule.user_id.toString(), // Convert to string to match our type definition
+        userId: schedule.user_id.toString(),
         userName: userName,
         date: dateStr,
         startTime: startTime,
@@ -126,7 +126,7 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
         room_id: schedule.roomId,
         start_time: startDateTime,
         end_time: endDateTime,
-        user_id: parseInt(schedule.userId), // Convert string ID to number for the database
+        user_id: parseInt(schedule.userId),
         title: schedule.title,
         description: schedule.description,
         user_name: schedule.userName,
@@ -163,7 +163,7 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
       roomId: data.room_id,
       title: data.title || `Room Booking #${data.id}`,
       description: data.description || '',
-      userId: data.user_id.toString(), // Convert to string to match our type
+      userId: data.user_id.toString(),
       userName: data.user_name || schedule.userName, 
       date: data.date || schedule.date,
       startTime: schedule.startTime,
@@ -179,22 +179,8 @@ export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Sc
 // Activity Log APIs
 export async function getActivityLogs(): Promise<ActivityLog[]> {
   try {
-    // First check if the table exists using our RPC function
-    const { data: tableExists, error: checkError } = await supabase.rpc(
-      'check_table_exists', 
-      { table_name: 'activity_logs' }
-    );
-    
-    if (checkError || !tableExists) {
-      console.error('Error checking activity_logs table:', checkError);
-      // Table might not exist yet
-      return [];
-    }
-    
     // Use the RPC function instead of direct table access
-    const { data, error } = await supabase.rpc(
-      'query_activity_logs'
-    );
+    const { data, error } = await supabase.rpc('query_activity_logs');
     
     if (error) {
       console.error('Error querying activity_logs:', error);
@@ -227,21 +213,6 @@ export async function getActivityLogs(): Promise<ActivityLog[]> {
 
 export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
   try {
-    // Check if activity_logs table exists
-    const { data: tableExists, error: checkError } = await supabase.rpc(
-      'check_table_exists', 
-      { table_name: 'activity_logs' }
-    );
-    
-    if (checkError || !tableExists) {
-      console.error('Activity logs table may not exist:', checkError);
-      // Return mock object since we can't log
-      return {
-        id: '0',
-        ...log
-      };
-    }
-    
     // Insert activity log using RPC
     const { data: logId, error } = await supabase.rpc(
       'insert_activity_log', 
@@ -290,7 +261,7 @@ export async function getUsers(): Promise<User[]> {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .order('username'); // Order by username instead of name
+      .order('username');
       
     if (error) {
       throw error;
@@ -298,7 +269,7 @@ export async function getUsers(): Promise<User[]> {
     
     return data.map(user => ({
       id: user.id.toString(),
-      name: user.username, // Use username as the name
+      name: user.username,
       email: user.email,
       role: user.role as 'admin' | 'faculty' | 'guest'
     }));

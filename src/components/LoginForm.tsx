@@ -85,8 +85,10 @@ const LoginForm: React.FC = () => {
       </CardContent>
       <CardFooter className="flex flex-col">
         <div className="text-sm text-muted-foreground text-center w-full">
-          <p>You need to create user accounts in the Supabase Dashboard.</p>
-          <p className="mt-2">Make sure to set the proper role in metadata.</p>
+          <p>Default accounts:</p>
+          <p className="mt-1">admin@example.com / password</p> 
+          <p className="mt-1">faculty@example.com / password</p>
+          <p className="mt-1">guest@example.com / password</p>
         </div>
       </CardFooter>
     </Card>

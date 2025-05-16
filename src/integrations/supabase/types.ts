@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          created_at: string | null
+          date: string
+          details: string | null
+          id: number
+          room_id: number
+          room_name: string
+          status: string
+          time: string
+          user_id: number | null
+          user_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          details?: string | null
+          id?: number
+          room_id: number
+          room_name: string
+          status: string
+          time: string
+          user_id?: number | null
+          user_name: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          details?: string | null
+          id?: number
+          room_id?: number
+          room_name?: string
+          status?: string
+          time?: string
+          user_id?: number | null
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           current_draw: number | null
@@ -19,14 +66,14 @@ export type Database = {
         }
         Insert: {
           current_draw?: number | null
-          id?: never
+          id?: number
           last_updated?: string | null
           name: string
           status?: string
         }
         Update: {
           current_draw?: number | null
-          id?: never
+          id?: number
           last_updated?: string | null
           name?: string
           status?: string
@@ -36,30 +83,42 @@ export type Database = {
       schedules: {
         Row: {
           created_at: string | null
+          date: string | null
+          description: string | null
           end_time: string
           id: number
           room_id: number
           start_time: string
+          title: string | null
           updated_at: string | null
           user_id: number
+          user_name: string | null
         }
         Insert: {
           created_at?: string | null
+          date?: string | null
+          description?: string | null
           end_time: string
-          id?: never
+          id?: number
           room_id: number
           start_time: string
+          title?: string | null
           updated_at?: string | null
           user_id: number
+          user_name?: string | null
         }
         Update: {
           created_at?: string | null
+          date?: string | null
+          description?: string | null
           end_time?: string
-          id?: never
+          id?: number
           room_id?: number
           start_time?: string
+          title?: string | null
           updated_at?: string | null
           user_id?: number
+          user_name?: string | null
         }
         Relationships: [
           {
@@ -91,7 +150,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email: string
-          id?: never
+          id?: number
           password_hash: string
           role: string
           updated_at?: string | null
@@ -100,7 +159,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string
-          id?: never
+          id?: number
           password_hash?: string
           role?: string
           updated_at?: string | null
@@ -113,7 +172,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_table_exists: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      create_activity_logs_table: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_check_table_exists_function: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      insert_activity_log: {
+        Args: {
+          p_room_id: number
+          p_room_name: string
+          p_user_id: number
+          p_user_name: string
+          p_date: string
+          p_time: string
+          p_status: string
+          p_details: string
+        }
+        Returns: number
+      }
+      query_activity_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          date: string
+          details: string | null
+          id: number
+          room_id: number
+          room_name: string
+          status: string
+          time: string
+          user_id: number | null
+          user_name: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
