@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -186,33 +187,33 @@ const Rooms: React.FC = () => {
                     Add Schedule
                   </TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="booked" className="pt-4 mt-0">
+                  {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
+                </TabsContent>
+                
+                <TabsContent value="add" className="pt-4 mt-0">
+                  {rooms.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-xl text-muted-foreground">No rooms available.</p>
+                      <p className="text-sm mt-2">Please contact administrator to add rooms.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                      {rooms.map((room) => (
+                        <RoomCard
+                          key={room.id}
+                          room={room}
+                          schedules={schedules.filter(s => s.roomId === room.id)}
+                          onAddSchedule={handleAddSchedule}
+                          userRole={currentUser.role}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
               </Tabs>
             </div>
-            
-            <TabsContent value="booked" className="pt-4 mt-0">
-              {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
-            </TabsContent>
-            
-            <TabsContent value="add" className="pt-4 mt-0">
-              {rooms.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-xl text-muted-foreground">No rooms available.</p>
-                  <p className="text-sm mt-2">Please contact administrator to add rooms.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                  {rooms.map((room) => (
-                    <RoomCard
-                      key={room.id}
-                      room={room}
-                      schedules={schedules.filter(s => s.roomId === room.id)}
-                      onAddSchedule={handleAddSchedule}
-                      userRole={currentUser.role}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
           </main>
           
           <AddScheduleModal
