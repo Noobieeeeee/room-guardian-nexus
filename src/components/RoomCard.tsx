@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Room, Schedule } from '@/lib/types';
+import { UserRole, Room, Schedule } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,7 +9,7 @@ interface RoomCardProps {
   room: Room;
   schedules: Schedule[];
   onAddSchedule: (roomId: number) => void;
-  userRole: 'admin' | 'faculty' | 'guest';
+  userRole: UserRole;
   dashboardView?: boolean;
 }
 

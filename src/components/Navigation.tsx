@@ -1,14 +1,17 @@
-
 import React from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { UserRole } from '@/lib/types';
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Calendar, Building, Users, Settings } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavigationProps {
-  userRole: UserRole;
+  userRole: UserRole;  // Update this to accept the UserRole type
 }
 
-const Navigation: React.FC<NavigationProps> = () => {
+const Navigation: React.FC<NavigationProps> = ({ userRole }) => {
   const isMobile = useIsMobile();
   
   return (

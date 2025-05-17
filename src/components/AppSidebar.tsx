@@ -58,7 +58,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
       path: '/calendar', 
       name: 'Calendar', 
       icon: CalendarDays,
-      allowedRoles: ['admin', 'faculty', 'guest'] as UserRole[] 
+      allowedRoles: ['admin', 'faculty', 'guest', 'student'] as UserRole[] 
     },
     { 
       path: '/rooms', 
