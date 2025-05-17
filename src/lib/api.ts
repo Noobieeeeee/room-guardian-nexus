@@ -15,7 +15,14 @@ export const getRooms = async (): Promise<Room[]> => {
       throw error;
     }
     
-    return data || [];
+    // Transform the data from snake_case to camelCase
+    return data.map(room => ({
+      id: room.id,
+      name: room.name,
+      status: room.status,
+      currentDraw: room.current_draw,
+      lastUpdated: room.last_updated || new Date().toISOString()
+    })) || [];
   } catch (error) {
     console.error('API request failed:', error);
     throw error;
@@ -36,7 +43,14 @@ export const updateRoomStatus = async (id: number, status: string): Promise<Room
       throw error;
     }
     
-    return data;
+    // Transform the data from snake_case to camelCase
+    return {
+      id: data.id,
+      name: data.name,
+      status: data.status,
+      currentDraw: data.current_draw,
+      lastUpdated: data.last_updated || new Date().toISOString()
+    };
   } catch (error) {
     console.error('API request failed:', error);
     throw error;
