@@ -13,6 +13,8 @@ export type AuthSession = {
  */
 export async function signIn(email: string, password: string): Promise<User | null> {
   try {
+    console.info('Attempting sign in for:', email);
+    
     // Get user by email and password (direct DB query since we don't use Supabase Auth)
     const { data, error } = await supabase
       .from('users')
@@ -28,6 +30,8 @@ export async function signIn(email: string, password: string): Promise<User | nu
     }
 
     if (data) {
+      console.info('User authenticated successfully:', data.username);
+      
       const user: User = {
         id: data.id.toString(), // Convert numeric ID to string
         name: data.username,
@@ -55,6 +59,8 @@ export async function signIn(email: string, password: string): Promise<User | nu
  */
 export async function signOut(): Promise<boolean> {
   try {
+    console.info('Signing out user');
+    
     // Remove user from local storage
     localStorage.removeItem('currentUser');
     
@@ -83,9 +89,11 @@ export async function getSession(): Promise<AuthSession> {
     
     if (storedUser) {
       const user = JSON.parse(storedUser);
+      console.info('Retrieved user session from localStorage:', user.name);
       return { user, session: {} }; // Return mock session
     }
     
+    console.info('No active user session found');
     return { user: null, session: null };
   } catch (error: any) {
     console.error('Session error:', error);
@@ -97,8 +105,11 @@ export async function getSession(): Promise<AuthSession> {
  * Initializes auth state
  */
 export function initAuth(callback: (user: User | null) => void): (() => void) {
+  console.info('Initializing authentication state');
+  
   // Check for existing session
   getSession().then(({ user }) => {
+    console.info('User from auth initialization:', user?.name || 'No user');
     callback(user);
   });
   
@@ -106,5 +117,6 @@ export function initAuth(callback: (user: User | null) => void): (() => void) {
   
   return () => {
     // Cleanup function
+    console.info('Auth cleanup function called');
   };
 }

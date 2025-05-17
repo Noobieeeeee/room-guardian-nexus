@@ -10,10 +10,10 @@ export async function initializeDatabase(): Promise<boolean> {
   
   try {
     // Check connection to Supabase
-    const { error } = await supabase.from('rooms').select('count', { count: 'exact', head: true });
+    const { data, error } = await supabase.from('rooms').select('count', { count: 'exact', head: true });
     
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.message.includes('does not exist') || error.code === 'PGRST116') {
         // Table doesn't exist yet - this could happen if migrations haven't been run
         console.warn('Database tables not found. Please ensure migrations have been applied.');
         toast.error('Database setup required. Please contact administrator.');
@@ -22,6 +22,8 @@ export async function initializeDatabase(): Promise<boolean> {
       throw error;
     }
 
+    console.info("Database connection successful");
+    
     // Seed database with initial data if needed
     await seedDatabase();
     
