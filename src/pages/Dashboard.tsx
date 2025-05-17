@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
 import RoomCard from '@/components/RoomCard';
-import { Room, Schedule, User } from '@/lib/types';
+import { Room, Schedule, User, RoomStatus } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
