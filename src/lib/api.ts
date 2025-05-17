@@ -1,322 +1,133 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { Room, Schedule, ActivityLog, User } from './types';
+import { Room, Schedule, User, ActivityLog } from './types';
 import { toast } from 'sonner';
 
-// Room APIs
-export async function getRooms(): Promise<Room[]> {
-  try {
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('*')
-      .order('id');
-      
-    if (error) {
-      throw error;
-    }
-    
-    if (!data || !Array.isArray(data)) {
-      console.error('Unexpected data format for rooms:', data);
-      return [];
-    }
-    
-    return data.map(room => ({
-      id: room.id,
-      name: room.name,
-      status: room.status as 'available' | 'in-use' | 'reserved',
-      currentDraw: room.current_draw || 0,
-      lastUpdated: room.last_updated
-    }));
-  } catch (error: any) {
-    console.error('Error fetching rooms:', error);
-    toast.error('Failed to load rooms');
-    return [];
-  }
-}
+const API_URL = '/api';
 
-export async function updateRoomStatus(roomId: number, status: 'available' | 'in-use' | 'reserved', currentDraw: number = 0): Promise<boolean> {
+// Error handling wrapper for fetch requests
+const fetchWithErrorHandling = async (url: string, options?: RequestInit) => {
   try {
-    const { error } = await supabase
-      .from('rooms')
-      .update({
-        status,
-        current_draw: currentDraw,
-        last_updated: new Date().toISOString()
-      })
-      .eq('id', roomId);
-      
-    if (error) {
-      throw error;
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
     }
     
-    return true;
-  } catch (error: any) {
-    console.error('Error updating room status:', error);
-    toast.error('Failed to update room status');
-    return false;
+    return await response.json();
+  } catch (error) {
+    console.error('API request failed:', error);
+    throw error;
   }
-}
+};
 
-// Schedule APIs
-export async function getSchedules(): Promise<Schedule[]> {
-  try {
-    // Get users for mapping
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, username');
-    
-    const userMap = new Map();
-    if (users && Array.isArray(users)) {
-      users.forEach(user => {
-        // Use username instead of name
-        userMap.set(user.id, user.username);
-      });
-    }
-    
-    const { data, error } = await supabase
-      .from('schedules')
-      .select('*');
-      
-    if (error) {
-      throw error;
-    }
-    
-    if (!data || !Array.isArray(data)) {
-      console.error('Unexpected data format for schedules:', data);
-      return [];
-    }
-    
-    return data.map(schedule => {
-      // Extract date part from start_time if date field is missing
-      const dateStr = schedule.date ? 
-        schedule.date : 
-        new Date(schedule.start_time).toISOString().split('T')[0];
-      
-      // Extract time parts from timestamps
-      const startTime = schedule.start_time.split('T')[1]?.substring(0, 5) || '00:00';
-      const endTime = schedule.end_time.split('T')[1]?.substring(0, 5) || '00:00';
-      
-      // Get the user's name from our map, schedule.user_name, or use a fallback
-      const userName = schedule.user_name || userMap.get(schedule.user_id) || 'Unknown User';
-      
-      // Handle optional fields that may not exist in all records
-      const title = schedule.title || `Room Booking #${schedule.id}`;
-      const description = schedule.description || '';
-      
-      return {
-        id: schedule.id.toString(),
-        roomId: schedule.room_id,
-        title: title,
-        description: description,
-        userId: schedule.user_id.toString(),
-        userName: userName,
-        date: dateStr,
-        startTime: startTime,
-        endTime: endTime
-      };
-    });
-  } catch (error: any) {
-    console.error('Error fetching schedules:', error);
-    toast.error('Failed to load schedules');
-    return [];
-  }
-}
+// Room API
+export const getRooms = async (): Promise<Room[]> => {
+  return fetchWithErrorHandling(`${API_URL}/rooms`);
+};
 
-export async function createSchedule(schedule: Omit<Schedule, 'id'>): Promise<Schedule | null> {
-  try {
-    console.log('Creating schedule with data:', schedule);
-    // Ensure user_id is properly parsed as an integer
-    const userId = parseInt(schedule.userId);
-    
-    if (isNaN(userId)) {
-      throw new Error('Invalid user ID: must be a number');
-    }
-    
-    // Get the formatted date in ISO format for start and end times
-    const startDateTime = `${schedule.date}T${schedule.startTime}:00`;
-    const endDateTime = `${schedule.date}T${schedule.endTime}:00`;
-    
-    const insertData = {
-      room_id: schedule.roomId,
-      start_time: startDateTime,
-      end_time: endDateTime,
-      user_id: userId,  // Explicitly ensure this is a number
-      title: schedule.title,
-      description: schedule.description || '',
-      user_name: schedule.userName,
-      date: schedule.date
-    };
-    
-    console.log('Inserting schedule with data:', insertData);
-    
-    const { data, error } = await supabase
-      .from('schedules')
-      .insert(insertData)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error inserting schedule:', error);
-      throw error;
-    }
-    
-    if (!data) {
-      console.error('No data returned after schedule insert');
-      throw new Error('Failed to create schedule');
-    }
-    
-    // Update room status to reserved
-    await updateRoomStatus(schedule.roomId, 'reserved');
-    
-    // Log this activity
-    await createActivityLog({
-      roomId: schedule.roomId,
-      roomName: `Room ${schedule.roomId}`,
-      userId: schedule.userId,
-      userName: schedule.userName,
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-      status: 'reserved',
-      details: `Room reserved: ${schedule.title}`
-    }).catch(err => {
-      // Log but don't fail if activity logging fails
-      console.error('Failed to log activity:', err);
-    });
-    
-    // Format the returned schedule to match our type definition
-    return {
-      id: data.id.toString(),
-      roomId: data.room_id,
-      title: data.title || `Room Booking #${data.id}`,
-      description: data.description || '',
-      userId: data.user_id.toString(),
-      userName: data.user_name || schedule.userName, 
-      date: data.date || schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime
-    };
-  } catch (error: any) {
-    console.error('Error creating schedule:', error);
-    toast.error(error.message || 'Failed to create schedule');
-    return null;
-  }
-}
+export const updateRoomStatus = async (id: number, status: string): Promise<Room> => {
+  return fetchWithErrorHandling(`${API_URL}/rooms/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status }),
+  });
+};
 
-// Activity Log APIs
-export async function getActivityLogs(): Promise<ActivityLog[]> {
-  try {
-    // Use RPC function to query logs
-    const { data, error } = await supabase.rpc('query_activity_logs');
-    
-    if (error) {
-      console.error('Error querying activity_logs:', error);
-      throw error;
-    }
-    
-    // If no data, return empty array
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-    
-    // Process the data safely with type checking
-    return data.map(log => ({
-      id: log.id?.toString() || '0',
-      roomId: log.room_id || 0,
-      roomName: log.room_name || 'Unknown Room',
-      userId: log.user_id ? log.user_id.toString() : '',
-      userName: log.user_name || 'Unknown User',
-      date: log.date || new Date().toISOString().split('T')[0],
-      time: log.time || '00:00',
-      status: (log.status as 'available' | 'in-use' | 'reserved') || 'available',
-      details: log.details || ''
-    }));
-  } catch (error: any) {
-    console.error('Error fetching activity logs:', error);
-    toast.error('Failed to load activity logs');
-    return [];
-  }
-}
+// User API
+export const getUsers = async (): Promise<User[]> => {
+  return fetchWithErrorHandling(`${API_URL}/users`);
+};
 
-export async function createActivityLog(log: Omit<ActivityLog, 'id'>): Promise<ActivityLog | null> {
-  try {
-    // Ensure user_id is properly formatted as an integer if present
-    let userId = null;
-    if (log.userId) {
-      userId = parseInt(log.userId);
-      if (isNaN(userId)) {
-        console.warn('Invalid user ID format for activity log, setting to null');
-        userId = null;
-      }
-    }
-    
-    // Insert activity log using RPC
-    const { data: logId, error } = await supabase.rpc(
-      'insert_activity_log', 
-      { 
-        p_room_id: log.roomId,
-        p_room_name: log.roomName,
-        p_user_id: userId,
-        p_user_name: log.userName,
-        p_date: log.date,
-        p_time: log.time,
-        p_status: log.status,
-        p_details: log.details || ''
-      }
-    );
-    
-    if (error) {
-      console.error('Error inserting activity log:', error);
-      throw error;
-    }
-    
-    // If we successfully inserted the log, return a properly formatted object
-    if (logId && typeof logId === 'number') {
-      return {
-        id: logId.toString(),
-        ...log
-      };
-    }
-    
-    // Return a mock object with the log data if insert didn't return an ID
-    return {
-      id: '0',
-      ...log
-    };
-  } catch (error: any) {
-    console.error('Error creating activity log:', error);
-    // Return mock object on failure
-    return {
-      id: '0',
-      ...log
-    };
-  }
-}
+export const createUser = async (user: Omit<User, 'id'>): Promise<User> => {
+  return fetchWithErrorHandling(`${API_URL}/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(user),
+  });
+};
 
-// User APIs
-export async function getUsers(): Promise<User[]> {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('username');
-      
-    if (error) {
-      throw error;
+export const updateUser = async (id: string, userData: Partial<User>): Promise<User> => {
+  return fetchWithErrorHandling(`${API_URL}/users/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(userData),
+  });
+};
+
+export const deleteUser = async (id: string): Promise<void> => {
+  return fetchWithErrorHandling(`${API_URL}/users/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+// Schedule API
+export const getSchedules = async (): Promise<Schedule[]> => {
+  return fetchWithErrorHandling(`${API_URL}/schedules`);
+};
+
+export const createSchedule = async (schedule: Omit<Schedule, 'id'>): Promise<Schedule> => {
+  const currentUser = localStorage.getItem('currentUser');
+  let userId = null;
+  let userName = '';
+  
+  if (currentUser) {
+    try {
+      const user = JSON.parse(currentUser);
+      userId = user.id;
+      userName = user.name;
+    } catch (e) {
+      console.error('Failed to parse user from localStorage:', e);
+      toast.error('Authentication error. Please log in again.');
+      throw new Error('Authentication error');
     }
-    
-    if (!data || !Array.isArray(data)) {
-      return [];
-    }
-    
-    return data.map(user => ({
-      id: user.id.toString(),
-      name: user.username,
-      email: user.email,
-      role: user.role as 'admin' | 'faculty' | 'guest'
-    }));
-  } catch (error: any) {
-    console.error('Error fetching users:', error);
-    toast.error('Failed to load users');
-    return [];
   }
-}
+  
+  if (!userId) {
+    toast.error('User ID is required to create a schedule');
+    throw new Error('Missing user ID');
+  }
+  
+  const scheduleWithUser = {
+    ...schedule,
+    userId,
+    userName
+  };
+  
+  console.log('Creating schedule with data:', scheduleWithUser);
+  
+  return fetchWithErrorHandling(`${API_URL}/schedules`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(scheduleWithUser),
+  });
+};
+
+export const updateSchedule = async (id: number, scheduleData: Partial<Schedule>): Promise<Schedule> => {
+  return fetchWithErrorHandling(`${API_URL}/schedules/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(scheduleData),
+  });
+};
+
+export const deleteSchedule = async (id: number): Promise<void> => {
+  return fetchWithErrorHandling(`${API_URL}/schedules/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+// Activity logs API
+export const getActivityLogs = async (): Promise<ActivityLog[]> => {
+  return fetchWithErrorHandling(`${API_URL}/logs`);
+};

@@ -3,26 +3,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
-import { User, Room, Schedule } from '@/lib/types';
+import RoomCard from '@/components/RoomCard';
+import { Room, Schedule, User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Plus } from 'lucide-react';
-import RoomSchedulesView from '@/components/RoomSchedulesView';
 import AddScheduleModal from '@/components/AddScheduleModal';
+import { Button } from '@/components/ui/button';
+import { Calendar as CalendarIcon, List } from 'lucide-react';
+import CalendarView from '@/components/CalendarView';
 
 const Rooms: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("booked");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<number | undefined>(undefined);
   const navigate = useNavigate();
@@ -34,10 +31,10 @@ const Rooms: React.FC = () => {
       try {
         const user = JSON.parse(storedUser);
         setCurrentUser(user);
-        // Only admin and faculty can access this page
-        if (user.role !== 'admin' && user.role !== 'faculty') {
-          toast.error('You do not have permission to access this page');
-          navigate('/dashboard');
+        
+        // If user is guest, redirect to calendar page
+        if (user.role === 'guest') {
+          navigate('/calendar');
           return;
         }
       } catch (e) {
@@ -51,7 +48,7 @@ const Rooms: React.FC = () => {
       return;
     }
     
-    // Fetch initial data
+    // Fetch data
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -62,10 +59,14 @@ const Rooms: React.FC = () => {
         
         if (roomsData && Array.isArray(roomsData)) {
           setRooms(roomsData);
+        } else {
+          console.error('Invalid rooms data:', roomsData);
         }
         
         if (schedulesData && Array.isArray(schedulesData)) {
           setSchedules(schedulesData);
+        } else {
+          console.error('Invalid schedules data:', schedulesData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -77,36 +78,56 @@ const Rooms: React.FC = () => {
     
     fetchData();
     
-    // Refresh data periodically
-    const interval = setInterval(fetchData, 10000);
+    // Set up polling for updates
+    const interval = setInterval(() => {
+      Promise.all([
+        getRooms(),
+        getSchedules()
+      ]).then(([roomsData, schedulesData]) => {
+        if (roomsData && Array.isArray(roomsData)) {
+          setRooms(roomsData);
+        }
+        
+        if (schedulesData && Array.isArray(schedulesData)) {
+          setSchedules(schedulesData);
+        }
+      });
+    }, 5000);
+    
     return () => clearInterval(interval);
   }, [navigate]);
 
-  const handleAddSchedule = (roomId?: number) => {
+  const handleAddSchedule = (roomId: number) => {
     setSelectedRoomId(roomId);
     setIsAddModalOpen(true);
   };
 
   const handleSaveSchedule = async (newSchedule: Omit<Schedule, 'id'>) => {
     try {
-      // Implementation would connect to the API
-      toast.success('Schedule created successfully');
-      // Mock update of local state
-      const mockSchedule: Schedule = {
-        ...newSchedule,
-        id: `tmp-${Date.now()}`,
-      };
-      setSchedules([...schedules, mockSchedule]);
+      // The createSchedule function in api.ts will handle all user data
+      const createdSchedule = await createSchedule(newSchedule);
+      
+      if (createdSchedule) {
+        // Update local state
+        setSchedules(prev => [...prev, createdSchedule]);
+        
+        // Update room status
+        setRooms(prevRooms => {
+          return prevRooms.map(room => {
+            if (room.id === newSchedule.roomId) {
+              return { ...room, status: 'reserved' };
+            }
+            return room;
+          });
+        });
+        
+        toast.success('Schedule created successfully');
+        setActiveTab("booked"); // Switch to booked tab to show the new schedule
+      }
     } catch (error) {
       console.error('Error creating schedule:', error);
       toast.error('Failed to create schedule');
     }
-  };
-
-  const handleDeleteSchedule = (scheduleId: string) => {
-    // Implementation would connect to the API
-    setSchedules(schedules.filter(s => s.id !== scheduleId));
-    toast.success('Schedule deleted successfully');
   };
 
   if (isLoading) {
@@ -117,54 +138,82 @@ const Rooms: React.FC = () => {
     );
   }
 
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'faculty')) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Access Restricted</h2>
+          <p className="mb-4">Only faculty and administrators can access room management.</p>
+          <Button 
+            onClick={() => navigate('/calendar')}
+            variant="default"
+          >
+            Go to Calendar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar userRole={currentUser?.role || 'guest'} />
+        <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">
-          <Navigation userRole={currentUser?.role || 'guest'} />
+          <Navigation userRole={currentUser.role} />
           
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold">Room Management</h1>
-                <p className="text-muted-foreground">Manage room schedules and bookings</p>
+                <p className="text-muted-foreground">
+                  Manage room bookings and schedules
+                </p>
               </div>
               
-              <Button onClick={() => handleAddSchedule()} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Add Schedule
-              </Button>
+              <Tabs 
+                defaultValue="booked" 
+                value={activeTab} 
+                onValueChange={setActiveTab}
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid grid-cols-2 w-full sm:w-[300px]">
+                  <TabsTrigger value="booked" className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    Booked Schedule
+                  </TabsTrigger>
+                  <TabsTrigger value="add" className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    Add Schedule
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             
-            <Tabs defaultValue="schedules" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="schedules">Booked Schedules</TabsTrigger>
-                <TabsTrigger value="new">Add Schedule</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="schedules" className="mt-4">
-                <RoomSchedulesView 
-                  rooms={rooms} 
-                  schedules={schedules}
-                  onDelete={handleDeleteSchedule}
-                  userRole={currentUser?.role || 'guest'}
-                  userId={currentUser?.id || ''}
-                />
-              </TabsContent>
-              
-              <TabsContent value="new" className="mt-4">
-                <div className="bg-white p-6 rounded-lg border">
-                  <h2 className="text-lg font-medium mb-4">Create New Room Schedule</h2>
-                  <p className="text-muted-foreground mb-4">
-                    Use the form below to create a new room booking.
-                  </p>
-                  
-                  <Button onClick={() => setIsAddModalOpen(true)}>
-                    Open Scheduling Form
-                  </Button>
+            <TabsContent value="booked" className="pt-4 mt-0">
+              {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
+            </TabsContent>
+            
+            <TabsContent value="add" className="pt-4 mt-0">
+              {rooms.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-xl text-muted-foreground">No rooms available.</p>
+                  <p className="text-sm mt-2">Please contact administrator to add rooms.</p>
                 </div>
-              </TabsContent>
-            </Tabs>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                  {rooms.map((room) => (
+                    <RoomCard
+                      key={room.id}
+                      room={room}
+                      schedules={schedules.filter(s => s.roomId === room.id)}
+                      onAddSchedule={handleAddSchedule}
+                      userRole={currentUser.role}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
           </main>
           
           <AddScheduleModal

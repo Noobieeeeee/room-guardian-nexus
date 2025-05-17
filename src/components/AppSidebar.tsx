@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Settings, Activity, LogOut, Users, Building } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, LogOut, Users, Building, CalendarDays } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -37,19 +37,25 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
       path: '/dashboard', 
       name: 'Dashboard', 
       icon: LayoutDashboard,
-      allowedRoles: ['admin', 'faculty', 'guest'] as UserRole[] 
+      allowedRoles: ['admin'] as UserRole[] 
     },
     { 
-      path: '/users', 
-      name: 'User Management', 
-      icon: Users,
-      allowedRoles: ['admin'] as UserRole[] 
+      path: '/calendar', 
+      name: 'Calendar', 
+      icon: CalendarDays,
+      allowedRoles: ['admin', 'faculty', 'guest'] as UserRole[] 
     },
     { 
       path: '/rooms', 
       name: 'Room Management', 
       icon: Building,
       allowedRoles: ['admin', 'faculty'] as UserRole[] 
+    },
+    { 
+      path: '/users', 
+      name: 'User Management', 
+      icon: Users,
+      allowedRoles: ['admin'] as UserRole[] 
     },
     { 
       path: '/logs', 
@@ -70,6 +76,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
     if (success) {
       toast.success('Logged out successfully');
       navigate('/');
+    } else {
+      toast.error('Failed to log out');
     }
   };
 
@@ -96,8 +104,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
                   tooltip={link.name}
                 >
                   <Link to={link.path}>
-                    <link.icon />
-                    <span>{link.name}</span>
+                    <link.icon className="h-5 w-5" />
+                    <span className="ml-2">{link.name}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Schedule, User } from '@/lib/types';
 import ScheduleDetailModal from '@/components/ScheduleDetailModal';
 import { cn } from '@/lib/utils';
+import { parseISO } from 'date-fns';
 
 interface CalendarViewProps {
   schedules: Schedule[];
@@ -82,6 +83,32 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
   
   const calendarRows = getCalendarRows();
 
+  // Check if a schedule is in progress
+  const isScheduleInProgress = (schedule: Schedule) => {
+    if (!schedule.date || !schedule.startTime || !schedule.endTime) return false;
+    
+    const now = new Date();
+    const scheduleDate = schedule.date;
+    const startDateTime = parseISO(`${scheduleDate}T${schedule.startTime}`);
+    const endDateTime = parseISO(`${scheduleDate}T${schedule.endTime}`);
+    
+    return now >= startDateTime && now <= endDateTime;
+  };
+  
+  // Get event class based on schedule status and user role
+  const getEventClass = (schedule: Schedule) => {
+    const inProgress = isScheduleInProgress(schedule);
+    const baseClass = "calendar-event";
+    
+    if (schedule.userId === currentUser?.id) {
+      return `${baseClass} event-faculty ${inProgress ? "ring-2 ring-blue-400" : ""}`;
+    } else if (currentUser?.role === 'admin') {
+      return `${baseClass} event-admin ${inProgress ? "ring-2 ring-blue-400" : ""}`;
+    } else {
+      return `${baseClass} event-guest ${inProgress ? "ring-2 ring-blue-400" : ""}`;
+    }
+  };
+
   return (
     <div className="calendar-container border rounded-lg shadow-sm">
       <div className="calendar-header bg-white p-4 flex items-center justify-between border-b">
@@ -151,14 +178,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
                           <div 
                             key={schedule.id}
                             onClick={() => handleScheduleClick(schedule)}
-                            className={cn(
-                              "calendar-event text-xs cursor-pointer",
-                              schedule.userId === currentUser?.id 
-                                ? "event-faculty" 
-                                : currentUser?.role === 'admin' 
-                                  ? "event-admin" 
-                                  : "event-guest"
-                            )}
+                            className={getEventClass(schedule)}
+                            title={`${schedule.title || `Room ${schedule.roomId}`} (${schedule.startTime} - ${schedule.endTime})`}
                           >
                             {schedule.title || `Room ${schedule.roomId}`}
                           </div>
@@ -178,7 +199,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           schedule={selectedSchedule}
-          userRole={currentUser?.role}
+          currentUser={currentUser}
         />
       )}
     </div>

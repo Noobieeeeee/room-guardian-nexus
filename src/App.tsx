@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import Logs from "./pages/Logs";
 import Users from "./pages/Users";
@@ -50,6 +51,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/calendar" element={<Calendar />} />
               <Route path="/users" element={<Users />} />
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/settings" element={<Settings />} />

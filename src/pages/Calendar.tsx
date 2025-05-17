@@ -3,14 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
-import RoomCard from '@/components/RoomCard';
-import { Room, Schedule, User } from '@/lib/types';
+import CalendarView from '@/components/CalendarView';
+import { Schedule, User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
-import { getRooms, getSchedules } from '@/lib/api';
+import { getSchedules } from '@/lib/api';
 
-const Dashboard: React.FC = () => {
-  const [rooms, setRooms] = useState<Room[]>([]);
+const Calendar: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,14 +21,7 @@ const Dashboard: React.FC = () => {
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        console.log('Current user from localStorage:', user);
         setCurrentUser(user);
-        
-        // If user is not admin, redirect to calendar page
-        if (user.role !== 'admin') {
-          navigate('/calendar');
-          return;
-        }
       } catch (e) {
         console.error('Failed to parse user from localStorage:', e);
         navigate('/');
@@ -37,25 +29,15 @@ const Dashboard: React.FC = () => {
       }
     } else {
       // No user found, redirect to login
-      console.log('No user found in localStorage, redirecting to login');
       navigate('/');
       return;
     }
     
-    // Fetch initial data
+    // Fetch schedules
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [roomsData, schedulesData] = await Promise.all([
-          getRooms(),
-          getSchedules()
-        ]);
-        
-        if (roomsData && Array.isArray(roomsData)) {
-          setRooms(roomsData);
-        } else {
-          console.error('Invalid rooms data:', roomsData);
-        }
+        const schedulesData = await getSchedules();
         
         if (schedulesData && Array.isArray(schedulesData)) {
           setSchedules(schedulesData);
@@ -64,7 +46,7 @@ const Dashboard: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        toast.error('Failed to load dashboard data');
+        toast.error('Failed to load calendar data');
       } finally {
         setIsLoading(false);
       }
@@ -72,14 +54,8 @@ const Dashboard: React.FC = () => {
     
     fetchData();
     
-    // Simulate real-time updates by polling
+    // Set up polling for updates
     const interval = setInterval(() => {
-      getRooms().then(updatedRooms => {
-        if (updatedRooms && Array.isArray(updatedRooms)) {
-          setRooms(updatedRooms);
-        }
-      });
-      
       getSchedules().then(updatedSchedules => {
         if (updatedSchedules && Array.isArray(updatedSchedules)) {
           setSchedules(updatedSchedules);
@@ -98,17 +74,17 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (!currentUser || currentUser.role !== 'admin') {
+  if (!currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
-          <p className="mb-4">You need admin privileges to view this page.</p>
+          <h2 className="text-xl font-bold mb-2">Authentication Required</h2>
+          <p className="mb-4">Please sign in to access the calendar.</p>
           <button 
-            onClick={() => navigate('/calendar')}
+            onClick={() => navigate('/')}
             className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple px-4 py-2 rounded"
           >
-            Go to Calendar
+            Go to Login
           </button>
         </div>
       </div>
@@ -123,36 +99,14 @@ const Dashboard: React.FC = () => {
           <Navigation userRole={currentUser.role} />
           
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
-            <div className="mb-4 sm:mb-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold">Room Status Dashboard</h1>
-                  <p className="text-muted-foreground text-sm sm:text-base">
-                    Monitor room availability and power status in real-time
-                  </p>
-                </div>
-              </div>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold">Calendar View</h1>
+              <p className="text-muted-foreground">
+                View and manage all room schedules
+              </p>
             </div>
             
-            {rooms.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-xl text-muted-foreground">No rooms available.</p>
-                <p className="text-sm mt-2">Please add rooms in the Room Management page.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {rooms.slice(0, 6).map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    schedules={schedules.filter(s => s.roomId === room.id)}
-                    onAddSchedule={() => navigate('/rooms')}
-                    userRole={currentUser.role}
-                    dashboardView={true}
-                  />
-                ))}
-              </div>
-            )}
+            {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
           </main>
         </SidebarInset>
       </div>
@@ -160,4 +114,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+export default Calendar;

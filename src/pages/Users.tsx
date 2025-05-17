@@ -6,27 +6,31 @@ import AppSidebar from '@/components/AppSidebar';
 import { User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
-import { getUsers } from '@/lib/api';
+import { getUsers, createUser, updateUser, deleteUser } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Edit, MoreHorizontal, Plus, Trash2, UserPlus } from 'lucide-react';
 import UserFormModal from '@/components/UserFormModal';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,10 +40,10 @@ const Users: React.FC = () => {
       try {
         const user = JSON.parse(storedUser);
         setCurrentUser(user);
-        // Only admin can access this page
+        
+        // If user is not admin, redirect to calendar page
         if (user.role !== 'admin') {
-          toast.error('You do not have permission to access this page');
-          navigate('/dashboard');
+          navigate('/calendar');
           return;
         }
       } catch (e) {
@@ -53,41 +57,48 @@ const Users: React.FC = () => {
       return;
     }
     
-    // Fetch users data
-    const fetchData = async () => {
+    // Fetch users
+    const fetchUsers = async () => {
       setIsLoading(true);
       try {
-        const usersData = await getUsers();
-        if (usersData && Array.isArray(usersData)) {
-          setUsers(usersData);
+        const userData = await getUsers();
+        
+        if (userData && Array.isArray(userData)) {
+          setUsers(userData);
+        } else {
+          console.error('Invalid users data:', userData);
         }
       } catch (error) {
         console.error('Error fetching users:', error);
-        toast.error('Failed to load users data');
+        toast.error('Failed to load users');
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchData();
+    fetchUsers();
   }, [navigate]);
 
   const handleAddUser = () => {
     setSelectedUser(null);
-    setIsFormOpen(true);
+    setIsUserModalOpen(true);
   };
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
-    setIsFormOpen(true);
+    setIsUserModalOpen(true);
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    // This would connect to an actual delete API
+  const handleDeleteUser = async (user: User) => {
+    if (user.id === currentUser?.id) {
+      toast.error("You cannot delete your own account");
+      return;
+    }
+
     try {
-      // Mock deletion for now
-      setUsers(users.filter(user => user.id !== userId));
-      toast.success('User deleted successfully');
+      await deleteUser(user.id);
+      setUsers(users.filter(u => u.id !== user.id));
+      toast.success(`${user.name} deleted successfully`);
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error('Failed to delete user');
@@ -97,35 +108,33 @@ const Users: React.FC = () => {
   const handleSaveUser = async (userData: User) => {
     try {
       if (selectedUser) {
-        // Update existing user (mock for now)
-        setUsers(users.map(user => (user.id === userData.id ? userData : user)));
-        toast.success('User updated successfully');
+        // Update existing user
+        const updatedUser = await updateUser(userData.id, userData);
+        setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
+        toast.success(`${updatedUser.name} updated successfully`);
       } else {
-        // Add new user (mock for now)
-        const newUser = {
-          ...userData,
-          id: `tmp-${Date.now()}`, // Would be replaced by an actual ID from the backend
-        };
+        // Create new user
+        const newUser = await createUser(userData);
         setUsers([...users, newUser]);
-        toast.success('User added successfully');
+        toast.success(`${newUser.name} added successfully`);
       }
-      setIsFormOpen(false);
+      setIsUserModalOpen(false);
     } catch (error) {
       console.error('Error saving user:', error);
       toast.error('Failed to save user');
     }
   };
 
-  const getRoleBadgeColor = (role: string) => {
+  const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case 'admin':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
+        return 'bg-guardian-red/10 text-guardian-red border border-guardian-red/20 px-2 py-0.5 rounded text-xs font-medium';
       case 'faculty':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
+        return 'bg-guardian-blue/10 text-guardian-blue border border-guardian-blue/20 px-2 py-0.5 rounded text-xs font-medium';
       case 'guest':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
+        return 'bg-guardian-green/10 text-guardian-green border border-guardian-green/20 px-2 py-0.5 rounded text-xs font-medium';
       default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+        return 'bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded text-xs font-medium';
     }
   };
 
@@ -137,73 +146,110 @@ const Users: React.FC = () => {
     );
   }
 
+  if (!currentUser || currentUser.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
+          <p className="mb-4">Only administrators can access user management.</p>
+          <Button 
+            onClick={() => navigate('/calendar')}
+            variant="default"
+          >
+            Go to Calendar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar userRole={currentUser?.role || 'guest'} />
+        <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">
-          <Navigation userRole={currentUser?.role || 'guest'} />
+          <Navigation userRole={currentUser.role} />
           
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold">User Management</h1>
-                <p className="text-muted-foreground">Manage system users and their permissions</p>
+                <p className="text-muted-foreground">
+                  Add, edit, and manage user accounts
+                </p>
               </div>
               
-              <Button onClick={handleAddUser} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Add User
+              <Button onClick={handleAddUser} className="sm:w-auto w-full flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add New User
               </Button>
             </div>
             
             <div className="rounded-md border">
               <Table>
-                <TableCaption>List of all system users.</TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead className="w-[250px]">Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="w-[150px] text-right">Actions</TableHead>
+                    <TableHead className="w-[150px]">Role</TableHead>
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleEditUser(user)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDeleteUser(user.id)}
-                          disabled={user.id === currentUser?.id} // Prevent deleting yourself
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        No users found. Click "Add New User" to create one.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <span className={getRoleBadgeClass(user.role)}>
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleEditUser(user)}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <Edit className="h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteUser(user)}
+                                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                disabled={user.id === currentUser.id}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
           </main>
           
-          <UserFormModal 
-            isOpen={isFormOpen}
-            onClose={() => setIsFormOpen(false)}
+          <UserFormModal
+            isOpen={isUserModalOpen}
+            onClose={() => setIsUserModalOpen(false)}
             onSave={handleSaveUser}
             user={selectedUser}
           />

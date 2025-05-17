@@ -1,7 +1,7 @@
 
 :root {
-  --sidebar-width: 250px;
-  --sidebar-width-icon: 72px; /* Increased from 64px for better visibility */
+  --sidebar-width: 280px; /* Increased from 250px for better visibility */
+  --sidebar-width-icon: 80px; /* Increased from 72px for better visibility */
   --background: 0 0% 100%;
   --foreground: 222.2 47.4% 11.2%;
   --sidebar: 217 33% 17%;
@@ -125,7 +125,7 @@
 @media (max-width: 640px) {
   :root {
     --sidebar-width: 100%;
-    --sidebar-width-icon: 56px; /* Adjusted for mobile */
+    --sidebar-width-icon: 70px; /* Increased for mobile */
   }
   
   .sidebar-open {

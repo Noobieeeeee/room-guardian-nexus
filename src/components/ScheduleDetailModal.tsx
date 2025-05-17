@@ -2,28 +2,32 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Schedule, UserRole } from '@/lib/types';
-import { format } from 'date-fns';
+import { Schedule, User } from '@/lib/types';
+import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, CalendarIcon, User, MapPin } from 'lucide-react';
+import { Clock, CalendarIcon, User as UserIcon, MapPin, Trash2 } from 'lucide-react';
+import { deleteSchedule } from '@/lib/api';
 
 interface ScheduleDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   schedule: Schedule;
-  userRole: UserRole;
+  currentUser: User;
 }
 
 const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   isOpen,
   onClose,
   schedule,
-  userRole
+  currentUser
 }) => {
+  const canDelete = currentUser.role === 'admin' || 
+    (currentUser.role === 'faculty' && schedule.userId === currentUser.id);
+
   const handleDelete = async () => {
     try {
-      // Placeholder for delete functionality
-      // Would be implemented through an API call
+      // Implement delete functionality with proper error handling
+      await deleteSchedule(schedule.id);
       toast.success('Schedule deleted successfully');
       onClose();
     } catch (error) {
@@ -42,7 +46,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="flex items-center gap-3 text-sm">
-            <User className="h-4 w-4 text-gray-500" />
+            <UserIcon className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">Instructor:</span>
             <span>{schedule.userName}</span>
           </div>
@@ -56,7 +60,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
           <div className="flex items-center gap-3 text-sm">
             <CalendarIcon className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">Date:</span>
-            <span>{format(new Date(schedule.date), 'MMMM d, yyyy')}</span>
+            <span>{schedule.date && format(parseISO(schedule.date), 'MMMM d, yyyy')}</span>
           </div>
           
           <div className="flex items-center gap-3 text-sm">
@@ -76,11 +80,13 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         <DialogFooter className="gap-2 sm:justify-between">
           <Button onClick={onClose} variant="outline">Close</Button>
           
-          {(userRole === 'admin' || (userRole === 'faculty' && schedule.userId === localStorage.getItem('userId'))) && (
+          {canDelete && (
             <Button 
               onClick={handleDelete} 
               variant="destructive"
+              className="flex items-center gap-2"
             >
+              <Trash2 className="h-4 w-4" />
               Delete Schedule
             </Button>
           )}
