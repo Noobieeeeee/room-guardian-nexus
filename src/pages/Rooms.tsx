@@ -103,7 +103,7 @@ const Rooms: React.FC = () => {
 
   const handleSaveSchedule = async (newSchedule: Omit<Schedule, 'id'>) => {
     try {
-      // Now properly imported from api.ts
+      // Import is already fixed at the top of the file
       const createdSchedule = await createSchedule(newSchedule);
       
       if (createdSchedule) {
@@ -114,7 +114,7 @@ const Rooms: React.FC = () => {
         setRooms(prevRooms => {
           return prevRooms.map(room => {
             if (room.id === newSchedule.roomId) {
-              return { ...room, status: 'reserved' };
+              return { ...room, status: 'reserved' as RoomStatus };
             }
             return room;
           });

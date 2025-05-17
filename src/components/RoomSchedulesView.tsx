@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Info } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate, formatTime } from '@/lib/dateUtils';
 import ScheduleDetailModal from '@/components/ScheduleDetailModal';
 import {
   Select,
@@ -127,10 +127,10 @@ const RoomSchedulesView: React.FC<RoomSchedulesViewProps> = ({
                   <TableCell>{schedule.title || "Untitled"}</TableCell>
                   <TableCell>{schedule.userName}</TableCell>
                   <TableCell>
-                    {format(new Date(schedule.date), 'MMM d, yyyy')}
+                    {formatDate(schedule.date)}
                   </TableCell>
                   <TableCell>
-                    {`${schedule.startTime} - ${schedule.endTime}`}
+                    {`${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button

@@ -1,5 +1,4 @@
-
-import { Room, Schedule, User, ActivityLog } from './types';
+import { Room, Schedule, User, ActivityLog, RoomStatus } from './types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,11 +14,11 @@ export const getRooms = async (): Promise<Room[]> => {
       throw error;
     }
     
-    // Transform the data from snake_case to camelCase
+    // Transform the data from snake_case to camelCase and ensure correct typing
     return data.map(room => ({
       id: room.id,
       name: room.name,
-      status: room.status,
+      status: room.status as RoomStatus,
       currentDraw: room.current_draw,
       lastUpdated: room.last_updated || new Date().toISOString()
     })) || [];
@@ -43,11 +42,11 @@ export const updateRoomStatus = async (id: number, status: string): Promise<Room
       throw error;
     }
     
-    // Transform the data from snake_case to camelCase
+    // Transform the data from snake_case to camelCase and ensure correct typing
     return {
       id: data.id,
       name: data.name,
-      status: data.status,
+      status: data.status as RoomStatus,
       currentDraw: data.current_draw,
       lastUpdated: data.last_updated || new Date().toISOString()
     };

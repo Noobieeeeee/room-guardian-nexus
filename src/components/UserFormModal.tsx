@@ -32,9 +32,9 @@ import * as z from 'zod';
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
-  role: z.enum(['admin', 'faculty', 'guest']),
+  role: z.enum(['admin', 'faculty', 'guest', 'student']),
   // In a real application, you'd likely want password validation
-  password: z.string().optional()
+  password: z.string().min(6, { message: 'Password must be at least 6 characters' }).optional().or(z.literal(''))
 });
 
 interface UserFormModalProps {
@@ -85,10 +85,17 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       role: values.role
       // Password would be handled differently in a real app
     });
+    form.reset(defaultValues);
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+        // Reset form when closing
+        form.reset(defaultValues);
+      }
+    }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit User' : 'Add New User'}</DialogTitle>
@@ -144,6 +151,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="faculty">Faculty</SelectItem>
                       <SelectItem value="guest">Guest</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
