@@ -5,11 +5,14 @@ import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
 import RoomCard from '@/components/RoomCard';
 import AddScheduleModal from '@/components/AddScheduleModal';
+import CalendarView from '@/components/CalendarView';
 import { Room, Schedule, User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules, createSchedule } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LayoutGrid, CalendarDays } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -18,6 +21,7 @@ const Dashboard: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("grid");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,6 +79,12 @@ const Dashboard: React.FC = () => {
       getRooms().then(updatedRooms => {
         if (updatedRooms && Array.isArray(updatedRooms)) {
           setRooms(updatedRooms);
+        }
+      });
+      
+      getSchedules().then(updatedSchedules => {
+        if (updatedSchedules && Array.isArray(updatedSchedules)) {
+          setSchedules(updatedSchedules);
         }
       });
     }, 5000);
@@ -154,28 +164,56 @@ const Dashboard: React.FC = () => {
           
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-4 sm:mb-6">
-              <h1 className="text-xl sm:text-2xl font-bold">Room Dashboard</h1>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Monitor and manage room availability in real-time
-              </p>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold">Room Dashboard</h1>
+                  <p className="text-muted-foreground text-sm sm:text-base">
+                    Monitor and manage room availability in real-time
+                  </p>
+                </div>
+                
+                <Tabs 
+                  defaultValue="grid" 
+                  value={activeTab} 
+                  onValueChange={setActiveTab}
+                  className="w-auto"
+                >
+                  <TabsList>
+                    <TabsTrigger value="grid" className="flex items-center gap-1">
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="hidden sm:inline">Grid</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="calendar" className="flex items-center gap-1">
+                      <CalendarDays className="h-4 w-4" />
+                      <span className="hidden sm:inline">Calendar</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
             
-            {rooms.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-xl text-muted-foreground">No rooms available.</p>
-                <p className="text-sm mt-2">Please add rooms in the Supabase dashboard.</p>
-              </div>
+            {activeTab === "grid" ? (
+              rooms.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-xl text-muted-foreground">No rooms available.</p>
+                  <p className="text-sm mt-2">Please add rooms in the Supabase dashboard.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                  {rooms.map((room) => (
+                    <RoomCard
+                      key={room.id}
+                      room={room}
+                      schedules={schedules.filter(s => s.roomId === room.id)}
+                      onAddSchedule={handleAddSchedule}
+                      userRole={currentUser.role}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {rooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    schedules={schedules.filter(s => s.roomId === room.id)}
-                    onAddSchedule={handleAddSchedule}
-                    userRole={currentUser.role}
-                  />
-                ))}
+              <div className="mt-6">
+                {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
               </div>
             )}
           </main>

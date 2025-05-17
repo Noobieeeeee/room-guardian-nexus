@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Settings, Activity, LogOut } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, LogOut, Users, Building } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +38,18 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
       name: 'Dashboard', 
       icon: LayoutDashboard,
       allowedRoles: ['admin', 'faculty', 'guest'] as UserRole[] 
+    },
+    { 
+      path: '/users', 
+      name: 'User Management', 
+      icon: Users,
+      allowedRoles: ['admin'] as UserRole[] 
+    },
+    { 
+      path: '/rooms', 
+      name: 'Room Management', 
+      icon: Building,
+      allowedRoles: ['admin', 'faculty'] as UserRole[] 
     },
     { 
       path: '/logs', 

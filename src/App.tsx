@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Logs from "./pages/Logs";
+import Users from "./pages/Users";
+import Rooms from "./pages/Rooms";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase } from "./lib/dbService";
 
@@ -48,6 +50,8 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/rooms" element={<Rooms />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="*" element={<NotFound />} />
