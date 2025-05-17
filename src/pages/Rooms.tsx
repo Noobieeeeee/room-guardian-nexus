@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -8,7 +7,7 @@ import { Room, Schedule, User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
-import { getRooms, getSchedules } from '@/lib/api';
+import { getRooms, getSchedules, createSchedule } from '@/lib/api';
 import AddScheduleModal from '@/components/AddScheduleModal';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, List } from 'lucide-react';
@@ -104,7 +103,7 @@ const Rooms: React.FC = () => {
 
   const handleSaveSchedule = async (newSchedule: Omit<Schedule, 'id'>) => {
     try {
-      // The createSchedule function in api.ts will handle all user data
+      // Now properly imported from api.ts
       const createdSchedule = await createSchedule(newSchedule);
       
       if (createdSchedule) {
@@ -158,9 +157,9 @@ const Rooms: React.FC = () => {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar userRole={currentUser.role} />
+        <AppSidebar userRole={currentUser?.role || 'guest'} />
         <SidebarInset className="flex-1 w-full">
-          <Navigation userRole={currentUser.role} />
+          <Navigation userRole={currentUser?.role || 'guest'} />
           
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

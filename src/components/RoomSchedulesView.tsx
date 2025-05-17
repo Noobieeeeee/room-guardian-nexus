@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Room, Schedule, UserRole } from '@/lib/types';
+import { Room, Schedule, User } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -28,16 +28,14 @@ interface RoomSchedulesViewProps {
   rooms: Room[];
   schedules: Schedule[];
   onDelete: (scheduleId: string) => void;
-  userRole: UserRole;
-  userId: string;
+  currentUser: User;
 }
 
 const RoomSchedulesView: React.FC<RoomSchedulesViewProps> = ({
   rooms,
   schedules,
   onDelete,
-  userRole,
-  userId
+  currentUser
 }) => {
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -61,7 +59,7 @@ const RoomSchedulesView: React.FC<RoomSchedulesViewProps> = ({
   });
 
   const canDeleteSchedule = (schedule: Schedule) => {
-    return userRole === 'admin' || (userRole === 'faculty' && schedule.userId === userId);
+    return currentUser.role === 'admin' || (currentUser.role === 'faculty' && schedule.userId === currentUser.id);
   };
   
   const getRoomName = (roomId: number) => {
@@ -164,7 +162,7 @@ const RoomSchedulesView: React.FC<RoomSchedulesViewProps> = ({
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           schedule={selectedSchedule}
-          userRole={userRole}
+          currentUser={currentUser}
         />
       )}
     </div>

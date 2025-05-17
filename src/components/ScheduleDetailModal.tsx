@@ -26,8 +26,8 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
 
   const handleDelete = async () => {
     try {
-      // Implement delete functionality with proper error handling
-      await deleteSchedule(schedule.id);
+      // Fix the type error by ensuring we pass a number
+      await deleteSchedule(Number(schedule.id));
       toast.success('Schedule deleted successfully');
       onClose();
     } catch (error) {
