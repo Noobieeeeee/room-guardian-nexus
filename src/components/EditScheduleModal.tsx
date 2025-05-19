@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,23 +6,21 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Room, Schedule, User } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { CalendarIcon, Clock } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { formatConflictMessage, format24To12 } from '@/lib/dateUtils';
 
-interface AddScheduleModalProps {
+interface EditScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (schedule: Omit<Schedule, 'id'>) => void;
+  onSave: (id: string, schedule: Partial<Schedule>) => void;
+  schedule: Schedule | null;
   user: User;
   existingSchedules: Schedule[];
-  initialRoomId?: number;
   rooms: Room[];
 }
 
@@ -40,30 +37,74 @@ const TIME_OPTIONS = [
   "23:00", "23:30"
 ];
 
-const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
+const EditScheduleModal: React.FC<EditScheduleModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  schedule,
   user,
   existingSchedules,
-  initialRoomId,
   rooms
 }) => {
-  const today = new Date();
-  const [selectedRoom, setSelectedRoom] = useState<string>(initialRoomId ? initialRoomId.toString() : '');
+  const [selectedRoom, setSelectedRoom] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState<Date | undefined>(today);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
 
+  // Initialize form with schedule data when it changes
   useEffect(() => {
-    if (initialRoomId) {
-      setSelectedRoom(initialRoomId.toString());
+    if (schedule) {
+      console.log('Loading schedule data:', schedule);
+      setSelectedRoom(schedule.roomId.toString());
+      setTitle(schedule.title || '');
+      setDescription(schedule.description || '');
+
+      // Handle date parsing more carefully
+      try {
+        // Check if the date is already a valid date string in YYYY-MM-DD format
+        if (schedule.date && /^\d{4}-\d{2}-\d{2}$/.test(schedule.date)) {
+          setDate(parseISO(schedule.date));
+        } else {
+          // If not in the expected format, try to parse it or default to today
+          setDate(schedule.date ? parseISO(schedule.date) : new Date());
+        }
+      } catch (error) {
+        console.error('Error parsing date:', error);
+        setDate(new Date());
+      }
+
+      // Handle time format - extract time part if it's in ISO format
+      let start = schedule.startTime;
+      let end = schedule.endTime;
+
+      // If startTime is in ISO format (contains 'T'), extract just the time part
+      if (start && start.includes('T')) {
+        const parts = start.split('T');
+        if (parts.length > 1) {
+          // Extract HH:MM from the time part
+          start = parts[1].substring(0, 5);
+        }
+      }
+
+      // If endTime is in ISO format (contains 'T'), extract just the time part
+      if (end && end.includes('T')) {
+        const parts = end.split('T');
+        if (parts.length > 1) {
+          // Extract HH:MM from the time part
+          end = parts[1].substring(0, 5);
+        }
+      }
+
+      console.log('Setting times:', { original: { start: schedule.startTime, end: schedule.endTime }, parsed: { start, end } });
+
+      setStartTime(start);
+      setEndTime(end);
     }
-  }, [initialRoomId]);
+  }, [schedule]);
 
   useEffect(() => {
     // Auto-adjust end time when start time changes to ensure it's later
@@ -91,6 +132,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
   };
 
   const handleSave = () => {
+    if (!schedule) return;
+
     // Reset errors
     setError(null);
     setTimeError(null);
@@ -109,14 +152,17 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     const roomId = parseInt(selectedRoom);
     const selectedDate = format(date, 'yyyy-MM-dd');
 
-    // Check for scheduling conflicts
-    const conflictingSchedule = existingSchedules.find(schedule => {
+    // Check for scheduling conflicts with other schedules (excluding the current one being edited)
+    const conflictingSchedule = existingSchedules.find(s => {
+      // Skip checking against the current schedule being edited
+      if (s.id === schedule.id) return false;
+
       return (
-        schedule.roomId === roomId &&
-        schedule.date === selectedDate &&
-        ((startTime >= schedule.startTime && startTime < schedule.endTime) ||
-          (endTime > schedule.startTime && endTime <= schedule.endTime) ||
-          (startTime <= schedule.startTime && endTime >= schedule.endTime))
+        s.roomId === roomId &&
+        s.date === selectedDate &&
+        ((startTime >= s.startTime && startTime < s.endTime) ||
+          (endTime > s.startTime && endTime <= s.endTime) ||
+          (startTime <= s.startTime && endTime >= s.endTime))
       );
     });
 
@@ -131,44 +177,26 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
       return;
     }
 
-    // Ensure user has a valid ID
-    if (!user || !user.id) {
-      setError('User information is missing. Please log in again.');
-      return;
-    }
-
-    const newSchedule: Omit<Schedule, 'id'> = {
+    const updatedSchedule: Partial<Schedule> = {
       roomId,
       title,
       description,
-      userId: user.id,
-      userName: user.name,
       date: selectedDate,
       startTime,
       endTime,
     };
 
-    onSave(newSchedule);
-    resetForm();
+    onSave(schedule.id, updatedSchedule);
     onClose();
   };
 
-  const resetForm = () => {
-    setSelectedRoom(initialRoomId ? initialRoomId.toString() : '');
-    setTitle('');
-    setDescription('');
-    setDate(today);
-    setStartTime('09:00');
-    setEndTime('10:00');
-    setError(null);
-    setTimeError(null);
-  };
+  if (!schedule) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Book a Room</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Edit Booking</DialogTitle>
         </DialogHeader>
 
         <Card className="border-0 shadow-none">
@@ -319,7 +347,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
             onClick={handleSave}
             disabled={!!timeError}
           >
-            Book Room
+            Update Booking
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -327,4 +355,4 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
   );
 };
 
-export default AddScheduleModal;
+export default EditScheduleModal;

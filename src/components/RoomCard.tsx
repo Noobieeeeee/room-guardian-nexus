@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO, isWithinInterval } from 'date-fns';
+import { formatTime } from '@/lib/dateUtils';
 
 interface RoomCardProps {
   room: Room;
@@ -13,39 +14,39 @@ interface RoomCardProps {
   dashboardView?: boolean;
 }
 
-const RoomCard: React.FC<RoomCardProps> = ({ 
-  room, 
-  schedules, 
-  onAddSchedule, 
+const RoomCard: React.FC<RoomCardProps> = ({
+  room,
+  schedules,
+  onAddSchedule,
   userRole,
   dashboardView = false
 }) => {
   const roomSchedules = schedules.filter(schedule => schedule.roomId === room.id);
   const currentSchedule = roomSchedules.length > 0 ? roomSchedules[0] : null;
   const now = new Date();
-  
+
   // Check if the current time falls within any scheduled time for this room
   const isCurrentlyScheduled = roomSchedules.some(schedule => {
     if (!schedule.date || !schedule.startTime || !schedule.endTime) return false;
-    
+
     const scheduleDate = schedule.date;
     const startDateTime = parseISO(`${scheduleDate}T${schedule.startTime}`);
     const endDateTime = parseISO(`${scheduleDate}T${schedule.endTime}`);
-    
+
     return isWithinInterval(now, { start: startDateTime, end: endDateTime });
   });
-  
+
   // Status logic for dashboard view based on power draw and schedule
   let statusColor = 'status-available'; // Default green
   let statusText = 'Available';
-  
+
   if (dashboardView) {
     const hasCurrentDraw = room.currentDraw && room.currentDraw > 0;
-    
+
     if (hasCurrentDraw) {
       if (isCurrentlyScheduled) {
         // Room is drawing power during scheduled time (blue)
-        statusColor = 'status-in-use'; 
+        statusColor = 'status-in-use';
         statusText = 'In Use (Scheduled)';
       } else {
         // Room is drawing power outside scheduled time (red)
@@ -60,19 +61,19 @@ const RoomCard: React.FC<RoomCardProps> = ({
   } else {
     // Original status logic for non-dashboard view
     switch(room.status) {
-      case 'available': 
-        statusColor = 'status-available'; 
+      case 'available':
+        statusColor = 'status-available';
         statusText = 'Available';
         break;
-      case 'in-use': 
+      case 'in-use':
         statusColor = 'status-in-use';
         statusText = 'In Use';
         break;
-      case 'reserved': 
+      case 'reserved':
         statusColor = 'status-reserved';
         statusText = 'Reserved';
         break;
-      default: 
+      default:
         statusColor = 'bg-gray-400';
         statusText = 'Unknown';
     }
@@ -87,11 +88,11 @@ const RoomCard: React.FC<RoomCardProps> = ({
     }
   };
 
-  const lastUpdated = new Date(room.lastUpdated);
-  const formattedTime = format(lastUpdated, 'h:mm a');
+  // Format the last updated time
+  const formattedTime = formatTime(room.lastUpdated);
 
   return (
-    <Card className={cn("h-full overflow-hidden border-2 transition-all duration-300 guardian-card-shadow flex flex-col", 
+    <Card className={cn("h-full overflow-hidden border-2 transition-all duration-300 guardian-card-shadow flex flex-col",
       getStatusBg(statusColor)
     )}>
       <CardHeader className="p-4 pb-0">
@@ -120,7 +121,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
             <div className="bg-secondary/10 p-3 rounded-md mb-4">
               <p className="font-medium text-sm">{currentSchedule.title || `Room Booking`}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {currentSchedule.startTime} - {currentSchedule.endTime}
+                {formatTime(currentSchedule.startTime)} - {formatTime(currentSchedule.endTime)}
               </p>
               <p className="text-xs mt-1">By {currentSchedule.userName}</p>
             </div>
@@ -133,20 +134,20 @@ const RoomCard: React.FC<RoomCardProps> = ({
 
         {!dashboardView && userRole !== 'guest' && (
           <div className="mt-auto">
-            <Button 
-              className="w-full bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple" 
+            <Button
+              className="w-full bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
               onClick={() => onAddSchedule(room.id)}
             >
               Book Room
             </Button>
           </div>
         )}
-        
+
         {dashboardView && (
           <div className="mt-auto text-center">
             <p className="text-xs text-muted-foreground">
-              {isCurrentlyScheduled 
-                ? "Room is currently scheduled" 
+              {isCurrentlyScheduled
+                ? "Room is currently scheduled"
                 : "No active schedule"}
             </p>
           </div>

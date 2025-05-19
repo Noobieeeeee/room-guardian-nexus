@@ -7,13 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { signIn } from '@/lib/auth';
+import { Eye, EyeOff } from 'lucide-react';
 
 const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     // Check if user is already logged in
     const storedUser = localStorage.getItem('currentUser');
@@ -25,10 +27,10 @@ const LoginForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const user = await signIn(email, password);
-      
+
       if (user) {
         // Store user in localStorage for persistence
         localStorage.setItem('currentUser', JSON.stringify(user));
@@ -54,28 +56,39 @@ const LoginForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input 
-              id="email" 
-              type="email" 
-              placeholder="you@example.com" 
-              value={email} 
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input 
-              id="password" 
-              type="password" 
-              placeholder="••••••••" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
             disabled={isLoading}
           >
@@ -86,7 +99,7 @@ const LoginForm: React.FC = () => {
       <CardFooter className="flex flex-col">
         <div className="text-sm text-muted-foreground text-center w-full">
           <p>Default accounts:</p>
-          <p className="mt-1">admin@example.com / password</p> 
+          <p className="mt-1">admin@example.com / password</p>
           <p className="mt-1">faculty@example.com / password</p>
           <p className="mt-1">guest@example.com / password</p>
         </div>

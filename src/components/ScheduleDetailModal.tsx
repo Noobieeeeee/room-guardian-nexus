@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { Clock, CalendarIcon, User as UserIcon, MapPin, Trash2 } from 'lucide-react';
 import { deleteSchedule } from '@/lib/api';
+import { formatDate, formatTime } from '@/lib/dateUtils';
 
 interface ScheduleDetailModalProps {
   isOpen: boolean;
@@ -21,7 +22,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   schedule,
   currentUser
 }) => {
-  const canDelete = currentUser.role === 'admin' || 
+  const canDelete = currentUser.role === 'admin' ||
     (currentUser.role === 'faculty' && schedule.userId === currentUser.id);
 
   const handleDelete = async () => {
@@ -50,25 +51,25 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
             <span className="font-medium text-gray-700">Instructor:</span>
             <span>{schedule.userName}</span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm">
             <MapPin className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">Room:</span>
             <span>{`Room ${schedule.roomId}`}</span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm">
             <CalendarIcon className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">Date:</span>
-            <span>{schedule.date && format(parseISO(schedule.date), 'MMMM d, yyyy')}</span>
+            <span>{formatDate(schedule.date)}</span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm">
             <Clock className="h-4 w-4 text-gray-500" />
             <span className="font-medium text-gray-700">Time:</span>
-            <span>{`${schedule.startTime} - ${schedule.endTime}`}</span>
+            <span>{`${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`}</span>
           </div>
-          
+
           {schedule.description && (
             <div className="mt-4">
               <h4 className="font-medium mb-1 text-sm text-gray-700">Description:</h4>
@@ -76,13 +77,13 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
             </div>
           )}
         </div>
-        
+
         <DialogFooter className="gap-2 sm:justify-between">
           <Button onClick={onClose} variant="outline">Close</Button>
-          
+
           {canDelete && (
-            <Button 
-              onClick={handleDelete} 
+            <Button
+              onClick={handleDelete}
               variant="destructive"
               className="flex items-center gap-2"
             >

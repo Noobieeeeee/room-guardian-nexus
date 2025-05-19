@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
 import CalendarView from '@/components/CalendarView';
+import WeekView from '@/components/WeekView';
 import { Schedule, User } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getSchedules } from '@/lib/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Calendar: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -32,13 +34,13 @@ const Calendar: React.FC = () => {
       navigate('/');
       return;
     }
-    
+
     // Fetch schedules
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const schedulesData = await getSchedules();
-        
+
         if (schedulesData && Array.isArray(schedulesData)) {
           setSchedules(schedulesData);
         } else {
@@ -51,9 +53,9 @@ const Calendar: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     // Set up polling for updates
     const interval = setInterval(() => {
       getSchedules().then(updatedSchedules => {
@@ -62,7 +64,7 @@ const Calendar: React.FC = () => {
         }
       });
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [navigate]);
 
@@ -80,7 +82,7 @@ const Calendar: React.FC = () => {
         <div className="text-center">
           <h2 className="text-xl font-bold mb-2">Authentication Required</h2>
           <p className="mb-4">Please sign in to access the calendar.</p>
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple px-4 py-2 rounded"
           >
@@ -92,12 +94,12 @@ const Calendar: React.FC = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">
           <Navigation userRole={currentUser.role} />
-          
+
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-6">
               <h1 className="text-2xl font-bold">Calendar View</h1>
@@ -105,8 +107,21 @@ const Calendar: React.FC = () => {
                 View and manage all room schedules
               </p>
             </div>
-            
-            {currentUser && <CalendarView schedules={schedules} currentUser={currentUser} />}
+
+            {currentUser && (
+              <Tabs defaultValue="month" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="month">Month View</TabsTrigger>
+                  <TabsTrigger value="week">Week View</TabsTrigger>
+                </TabsList>
+                <TabsContent value="month">
+                  <CalendarView schedules={schedules} currentUser={currentUser} />
+                </TabsContent>
+                <TabsContent value="week">
+                  <WeekView schedules={schedules} currentUser={currentUser} />
+                </TabsContent>
+              </Tabs>
+            )}
           </main>
         </SidebarInset>
       </div>

@@ -2,16 +2,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import { seedDatabase } from './seedData';
 import { toast } from 'sonner';
+import { createClient } from '@supabase/supabase-js';
 
 let isInitialized = false;
 
 export async function initializeDatabase(): Promise<boolean> {
   if (isInitialized) return true;
-  
+
   try {
     // Check connection to Supabase
     const { data, error } = await supabase.from('rooms').select('count', { count: 'exact', head: true });
-    
+
     if (error) {
       if (error.message.includes('does not exist') || error.code === 'PGRST116') {
         // Table doesn't exist yet - this could happen if migrations haven't been run
@@ -23,10 +24,17 @@ export async function initializeDatabase(): Promise<boolean> {
     }
 
     console.info("Database connection successful");
-    
+
+    // Check if schedules table is accessible
+    const schedulesTableOk = await checkSchedulesTable();
+    if (!schedulesTableOk) {
+      console.warn('Schedules table is not accessible. Some features may not work properly.');
+      toast.error('Error connecting to schedules table. Room booking may not work.');
+    }
+
     // Seed database with initial data if needed
     await seedDatabase();
-    
+
     isInitialized = true;
     return true;
   } catch (error) {
@@ -38,4 +46,50 @@ export async function initializeDatabase(): Promise<boolean> {
 
 export function resetDatabaseState(): void {
   isInitialized = false;
+}
+
+/**
+ * Check if the schedules table exists and is accessible
+ */
+export async function checkSchedulesTable(): Promise<boolean> {
+  try {
+    console.log('Checking schedules table...');
+
+    // Try to directly access the schedules table with a simple query
+    const { data, error } = await supabase
+      .from('schedules')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      console.error('Error accessing schedules table:', error);
+
+      // If there's an error, try to create a direct connection to verify the issue
+      const SUPABASE_URL = "https://crrucdgzyosmauckvczl.supabase.co";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycnVjZGd6eW9zbWF1Y2t2Y3psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NTQ4NzIsImV4cCI6MjA2MjIzMDg3Mn0.xNmWNSdTCl2KrvYAdZBAGAGPsl0RuSuiA5vcLoubqJ8";
+
+      // Create a new client with minimal configuration
+      const directClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      // Try the same query with the direct client
+      const directResult = await directClient
+        .from('schedules')
+        .select('id')
+        .limit(1);
+
+      if (directResult.error) {
+        console.error('Direct client also failed to access schedules table:', directResult.error);
+        return false;
+      } else {
+        console.log('Direct client successfully accessed schedules table. Issue is with the main client configuration.');
+        return true;
+      }
+    }
+
+    console.log('Schedules table exists and is accessible');
+    return true;
+  } catch (error) {
+    console.error('Error checking schedules table:', error);
+    return false;
+  }
 }

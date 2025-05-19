@@ -2,10 +2,22 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Make sure the URL is correct with no typos
 const SUPABASE_URL = "https://crrucdgzyosmauckvczl.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNycnVjZGd6eW9zbWF1Y2t2Y3psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2NTQ4NzIsImV4cCI6MjA2MjIzMDg3Mn0.xNmWNSdTCl2KrvYAdZBAGAGPsl0RuSuiA5vcLoubqJ8";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Create the client with proper options to ensure URLs are constructed correctly
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  },
+});

@@ -7,6 +7,7 @@ import { Room, Schedule, User, RoomStatus, UserRole } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
+import { format } from 'date-fns';
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -14,6 +15,12 @@ const Dashboard: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Function to get schedules for today only
+  const getTodaySchedules = (allSchedules: Schedule[]): Schedule[] => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return allSchedules.filter(schedule => schedule.date === today);
+  };
 
   useEffect(() => {
     // Check for logged in user
@@ -23,7 +30,7 @@ const Dashboard: React.FC = () => {
         const user = JSON.parse(storedUser);
         console.log('Current user from localStorage:', user);
         setCurrentUser(user);
-        
+
         // If user is not admin, redirect to calendar page
         if (user.role !== 'admin') {
           navigate('/calendar');
@@ -40,7 +47,7 @@ const Dashboard: React.FC = () => {
       navigate('/');
       return;
     }
-    
+
     // Fetch initial data
     const fetchData = async () => {
       setIsLoading(true);
@@ -49,13 +56,13 @@ const Dashboard: React.FC = () => {
           getRooms(),
           getSchedules()
         ]);
-        
+
         if (roomsData && Array.isArray(roomsData)) {
           setRooms(roomsData);
         } else {
           console.error('Invalid rooms data:', roomsData);
         }
-        
+
         if (schedulesData && Array.isArray(schedulesData)) {
           setSchedules(schedulesData);
         } else {
@@ -68,9 +75,9 @@ const Dashboard: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     // Simulate real-time updates by polling
     const interval = setInterval(() => {
       getRooms().then(updatedRooms => {
@@ -78,14 +85,14 @@ const Dashboard: React.FC = () => {
           setRooms(updatedRooms);
         }
       });
-      
+
       getSchedules().then(updatedSchedules => {
         if (updatedSchedules && Array.isArray(updatedSchedules)) {
           setSchedules(updatedSchedules);
         }
       });
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [navigate]);
 
@@ -103,7 +110,7 @@ const Dashboard: React.FC = () => {
         <div className="text-center">
           <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
           <p className="mb-4">You need admin privileges to view this page.</p>
-          <button 
+          <button
             onClick={() => navigate('/calendar')}
             className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple px-4 py-2 rounded"
           >
@@ -115,12 +122,12 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">
           <Navigation userRole={currentUser.role} />
-          
+
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-4 sm:mb-6">
               <div className="flex justify-between items-center">
@@ -132,7 +139,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             {rooms.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-xl text-muted-foreground">No rooms available.</p>
@@ -140,16 +147,26 @@ const Dashboard: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {rooms.slice(0, 6).map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    schedules={schedules.filter(s => s.roomId === room.id)}
-                    onAddSchedule={() => navigate('/rooms')}
-                    userRole={currentUser.role}
-                    dashboardView={true}
-                  />
-                ))}
+                {/* Get schedules for today only */}
+                {(() => {
+                  const todaySchedules = getTodaySchedules(schedules);
+
+                  return rooms.slice(0, 6).map((room) => {
+                    // Filter today's schedules for this specific room
+                    const roomTodaySchedules = todaySchedules.filter(s => s.roomId === room.id);
+
+                    return (
+                      <RoomCard
+                        key={room.id}
+                        room={room}
+                        schedules={roomTodaySchedules}
+                        onAddSchedule={() => navigate('/rooms')}
+                        userRole={currentUser.role}
+                        dashboardView={true}
+                      />
+                    );
+                  });
+                })()}
               </div>
             )}
           </main>

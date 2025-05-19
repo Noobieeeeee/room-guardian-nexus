@@ -16,11 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Edit, MoreHorizontal, Plus, Trash2, UserPlus } from 'lucide-react';
 import UserFormModal from '@/components/UserFormModal';
@@ -40,7 +40,7 @@ const Users: React.FC = () => {
       try {
         const user = JSON.parse(storedUser);
         setCurrentUser(user);
-        
+
         // If user is not admin, redirect to calendar page
         if (user.role !== 'admin') {
           navigate('/calendar');
@@ -56,13 +56,13 @@ const Users: React.FC = () => {
       navigate('/');
       return;
     }
-    
+
     // Fetch users
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
         const userData = await getUsers();
-        
+
         if (userData && Array.isArray(userData)) {
           setUsers(userData);
         } else {
@@ -75,7 +75,7 @@ const Users: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchUsers();
   }, [navigate]);
 
@@ -152,7 +152,7 @@ const Users: React.FC = () => {
         <div className="text-center">
           <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
           <p className="mb-4">Only administrators can access user management.</p>
-          <Button 
+          <Button
             onClick={() => navigate('/calendar')}
             variant="default"
           >
@@ -164,12 +164,12 @@ const Users: React.FC = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar userRole={currentUser.role} />
         <SidebarInset className="flex-1 w-full">
           <Navigation userRole={currentUser.role} />
-          
+
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
@@ -178,13 +178,13 @@ const Users: React.FC = () => {
                   Add, edit, and manage user accounts
                 </p>
               </div>
-              
+
               <Button onClick={handleAddUser} className="sm:w-auto w-full flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
                 Add New User
               </Button>
             </div>
-            
+
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -221,14 +221,14 @@ const Users: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleEditUser(user)}
                                 className="flex items-center gap-2 cursor-pointer"
                               >
                                 <Edit className="h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleDeleteUser(user)}
                                 className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
                                 disabled={user.id === currentUser.id}
@@ -246,7 +246,7 @@ const Users: React.FC = () => {
               </Table>
             </div>
           </main>
-          
+
           <UserFormModal
             isOpen={isUserModalOpen}
             onClose={() => setIsUserModalOpen(false)}
