@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# RoomGuardian Nexus
 
-## Project info
+RoomGuardian Nexus is a modern web application for managing room bookings, schedules, and facility management. Built with React, TypeScript, and Supabase, it provides a sleek and intuitive interface for managing room reservations and monitoring facility usage.
 
-**URL**: https://lovable.dev/projects/b1ab96d9-dfc5-4bac-93fd-47f8a2e4ab71
+## Features
 
-## How can I edit this code?
+- 📅 Interactive Calendar View
+- 🏢 Room Management
+- 👥 User Management
+- 📊 Dashboard Analytics
+- 📝 Booking Management
+- 🔐 Role-based Access Control
+- 📱 Responsive Design
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend Framework:** React 18
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** shadcn/ui
+- **State Management:** React Query
+- **Form Handling:** React Hook Form + Zod
+- **Database:** Supabase
+- **Routing:** React Router DOM
+- **Date Handling:** date-fns
+- **Charts:** Recharts
+- **Build Tool:** Vite
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b1ab96d9-dfc5-4bac-93fd-47f8a2e4ab71) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js (v18 or higher)
+- npm or yarn
+- Supabase account and project
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Noobieeeeee/room-guardian-nexus.git
+   cd room-guardian-nexus
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-Follow these steps:
+3. Create a `.env` file in the root directory with your Supabase credentials:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. Start the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+5. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Available Scripts
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run build:dev` - Build for development
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview production build
+
+## Project Structure
+
+```
+src/
+├── components/     # Reusable UI components
+├── pages/         # Page components
+├── lib/           # Utility functions and services
+├── integrations/  # Third-party integrations
+├── styles/        # Global styles
+└── types/         # TypeScript type definitions
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-**Use GitHub Codespaces**
+## License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## What technologies are used for this project?
+## Acknowledgments
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b1ab96d9-dfc5-4bac-93fd-47f8a2e4ab71) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- [shadcn/ui](https://ui.shadcn.com/) for the beautiful UI components
+- [Supabase](https://supabase.com/) for the backend infrastructure
+- [Vite](https://vitejs.dev/) for the build tool
+- [Tailwind CSS](https://tailwindcss.com/) for the styling framework
