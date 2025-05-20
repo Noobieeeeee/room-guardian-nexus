@@ -1,19 +1,25 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import AppSidebar from '@/components/AppSidebar';
 import RoomCard from '@/components/RoomCard';
-import { Room, Schedule, User, RoomStatus, UserRole } from '@/lib/types';
+import { Room, Schedule, User, RoomStatus } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { Progress } from '@/components/ui/progress';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [powerUsage, setPowerUsage] = useState<{[key: number]: number}>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,6 +59,12 @@ const Dashboard: React.FC = () => {
 
         if (roomsData && Array.isArray(roomsData)) {
           setRooms(roomsData);
+          // Initialize power usage data
+          const initialPowerUsage: {[key: number]: number} = {};
+          roomsData.forEach(room => {
+            initialPowerUsage[room.id] = room.currentDraw || 0;
+          });
+          setPowerUsage(initialPowerUsage);
         } else {
           console.error('Invalid rooms data:', roomsData);
         }
@@ -72,23 +84,53 @@ const Dashboard: React.FC = () => {
 
     fetchData();
 
-    // Simulate real-time updates by polling
-    const interval = setInterval(() => {
-      getRooms().then(updatedRooms => {
-        if (updatedRooms && Array.isArray(updatedRooms)) {
-          setRooms(updatedRooms);
+    // Set up real-time listener for power data updates
+    const powerDataChannel = supabase
+      .channel('room-power-updates')
+      .on('postgres_changes', 
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'room_power_data'
+        },
+        (payload) => {
+          console.log('New power data received:', payload);
+          const { room_id, current_draw } = payload.new;
+          
+          // Update the power usage state
+          setPowerUsage(prev => ({
+            ...prev,
+            [room_id]: current_draw
+          }));
+          
+          // Update the rooms state
+          setRooms(currentRooms => 
+            currentRooms.map(room => 
+              room.id === room_id 
+                ? { ...room, currentDraw: current_draw, lastUpdated: new Date().toISOString() }
+                : room
+            )
+          );
         }
-      });
+      )
+      .subscribe();
 
-      getSchedules().then(updatedSchedules => {
-        if (updatedSchedules && Array.isArray(updatedSchedules)) {
-          setSchedules(updatedSchedules);
-        }
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
+    // Clean up the subscription
+    return () => {
+      supabase.removeChannel(powerDataChannel);
+    };
   }, [navigate]);
+
+  const getTotalPowerUsage = () => {
+    return Object.values(powerUsage).reduce((sum, curr) => sum + Number(curr), 0);
+  };
+
+  const getChartData = () => {
+    return rooms.map(room => ({
+      name: room.name,
+      value: Number(room.currentDraw || 0),
+    }));
+  };
 
   if (isLoading) {
     return (
@@ -123,13 +165,41 @@ const Dashboard: React.FC = () => {
           <Navigation userRole={currentUser.role} />
 
           <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
-            <div className="mb-4 sm:mb-6">
+            <div className="mb-6">
               <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold">Room Status Dashboard</h1>
                   <p className="text-muted-foreground text-sm sm:text-base">
                     Monitor room availability and power status in real-time
                   </p>
+                </div>
+              </div>
+
+              {/* Power usage overview */}
+              <div className="mt-6 p-4 border rounded-lg bg-card shadow-sm">
+                <h2 className="text-lg font-semibold mb-2">Total Power Usage</h2>
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-2xl font-bold">{getTotalPowerUsage().toFixed(2)} A</span>
+                  <span className="text-muted-foreground">current draw</span>
+                </div>
+                
+                <div className="mt-4">
+                  <ChartContainer
+                    config={{
+                      name: { label: "Room" },
+                      value: { label: "Current Draw (A)" },
+                    }}
+                    className="h-[200px]"
+                  >
+                    <BarChart data={getChartData()}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Bar dataKey="value" fill="#8884d8" />
+                      <ChartTooltip>
+                        <ChartTooltipContent />
+                      </ChartTooltip>
+                    </BarChart>
+                  </ChartContainer>
                 </div>
               </div>
             </div>

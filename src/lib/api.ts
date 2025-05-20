@@ -685,3 +685,43 @@ export const createActivityLog = async (
     return -1;
   }
 };
+
+// Add a new function to get the latest power data
+export const getLatestPowerData = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_latest_power_data');
+    
+    if (error) {
+      console.error('Error fetching latest power data:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in getLatestPowerData:', error);
+    throw error;
+  }
+};
+
+// Add a function to submit power readings (for external devices)
+export const submitPowerReading = async (roomId: number, currentDraw: number, deviceId?: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('room_power_data')
+      .insert({
+        room_id: roomId,
+        current_draw: currentDraw,
+        device_id: deviceId || 'web-client'
+      });
+
+    if (error) {
+      console.error('Error submitting power reading:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in submitPowerReading:', error);
+    throw error;
+  }
+};

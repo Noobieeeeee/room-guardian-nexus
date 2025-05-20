@@ -56,6 +56,38 @@ export type Database = {
           },
         ]
       }
+      room_power_data: {
+        Row: {
+          current_draw: number
+          device_id: string | null
+          id: string
+          recorded_at: string
+          room_id: number
+        }
+        Insert: {
+          current_draw: number
+          device_id?: string | null
+          id?: string
+          recorded_at?: string
+          room_id: number
+        }
+        Update: {
+          current_draw?: number
+          device_id?: string | null
+          id?: string
+          recorded_at?: string
+          room_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_power_data_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           current_draw: number | null
@@ -183,6 +215,14 @@ export type Database = {
       create_check_table_exists_function: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_latest_power_data: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          room_id: number
+          current_draw: number
+          recorded_at: string
+        }[]
       }
       insert_activity_log: {
         Args: {
