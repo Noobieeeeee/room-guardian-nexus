@@ -8,16 +8,10 @@ import { Room, Schedule, User, RoomStatus } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
-import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { Progress } from '@/components/ui/progress';
-import { ChartContainer } from '@/components/ui/chart';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps, CartesianGrid } from 'recharts';
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Button } from "@/components/ui/button";
-import { LayoutDashboard, LineChart } from "lucide-react";
-import { Link } from 'react-router-dom';
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps, CartesianGrid } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LayoutDashboard, LineChart } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -127,10 +121,6 @@ const Dashboard: React.FC = () => {
     };
   }, [navigate]);
 
-  const getTotalPowerUsage = () => {
-    return Object.values(powerUsage).reduce((sum, curr) => sum + Number(curr), 0);
-  };
-
   const getChartData = () => {
     return rooms.map(room => ({
       name: room.name,
@@ -189,32 +179,6 @@ const Dashboard: React.FC = () => {
                   <p className="text-muted-foreground text-sm sm:text-base">
                     Monitor room availability and power status in real-time
                   </p>
-                </div>
-                <Link to="/power-analytics">
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <LineChart className="h-4 w-4" />
-                    <span>Detailed Analytics</span>
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Power usage overview */}
-              <div className="mt-6 p-4 border rounded-lg bg-card shadow-sm">
-                <h2 className="text-lg font-semibold mb-2">Total Power Usage</h2>
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-2xl font-bold">{getTotalPowerUsage().toFixed(2)} A</span>
-                  <span className="text-muted-foreground">current draw</span>
-                </div>
-                
-                <div className="mt-4">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={getChartData()}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="value" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -275,14 +239,6 @@ const Dashboard: React.FC = () => {
                             <Bar dataKey="value" fill="#7E69AB" />
                           </BarChart>
                         </ResponsiveContainer>
-                      </div>
-                      <div className="mt-4 text-center">
-                        <Link to="/power-analytics">
-                          <Button>
-                            <LineChart className="mr-2 h-4 w-4" />
-                            View Detailed Analytics
-                          </Button>
-                        </Link>
                       </div>
                     </div>
                   </TabsContent>
