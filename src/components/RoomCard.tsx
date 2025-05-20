@@ -3,7 +3,7 @@ import { UserRole, Room, Schedule } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { format, parseISO, isWithinInterval } from 'date-fns';
+import { format, parseISO, isWithinInterval, isFuture, addMinutes, isAfter, isBefore, differenceInMinutes } from 'date-fns';
 import { formatTime } from '@/lib/dateUtils';
 
 interface RoomCardProps {
@@ -22,8 +22,35 @@ const RoomCard: React.FC<RoomCardProps> = ({
   dashboardView = false
 }) => {
   const roomSchedules = schedules.filter(schedule => schedule.roomId === room.id);
-  const currentSchedule = roomSchedules.length > 0 ? roomSchedules[0] : null;
   const now = new Date();
+
+  // Find the next nearest schedule
+  const getNextNearestSchedule = (): Schedule | null => {
+    if (roomSchedules.length === 0) return null;
+
+    // Convert schedules to date objects for comparison
+    const schedulesWithDates = roomSchedules.map(schedule => {
+      const startDateTime = parseISO(`${schedule.date}T${schedule.startTime}`);
+      const endDateTime = parseISO(`${schedule.date}T${schedule.endTime}`);
+      return { ...schedule, startDateTime, endDateTime };
+    });
+
+    // First check if there's a currently active schedule
+    const currentActiveSchedule = schedulesWithDates.find(schedule =>
+      isWithinInterval(now, { start: schedule.startDateTime, end: schedule.endDateTime })
+    );
+
+    if (currentActiveSchedule) return currentActiveSchedule;
+
+    // If no active schedule, find the next upcoming one
+    const futureSchedules = schedulesWithDates
+      .filter(schedule => isAfter(schedule.startDateTime, now))
+      .sort((a, b) => a.startDateTime.getTime() - b.startDateTime.getTime());
+
+    return futureSchedules.length > 0 ? futureSchedules[0] : null;
+  };
+
+  const nextSchedule = getNextNearestSchedule();
 
   // Check if the current time falls within any scheduled time for this room
   const isCurrentlyScheduled = roomSchedules.some(schedule => {
@@ -36,27 +63,42 @@ const RoomCard: React.FC<RoomCardProps> = ({
     return isWithinInterval(now, { start: startDateTime, end: endDateTime });
   });
 
-  // Status logic for dashboard view based on power draw and schedule
+  // Check if we're approaching the next schedule (within 15 minutes)
+  const isApproachingSchedule = nextSchedule ? (() => {
+    const startDateTime = parseISO(`${nextSchedule.date}T${nextSchedule.startTime}`);
+    const minutesUntilStart = differenceInMinutes(startDateTime, now);
+    return minutesUntilStart >= 0 && minutesUntilStart <= 15;
+  })() : false;
+
+  // Status logic for dashboard view based on power draw, schedule, and time
   let statusColor = 'status-available'; // Default green
   let statusText = 'Available';
 
   if (dashboardView) {
     const hasCurrentDraw = room.currentDraw && room.currentDraw > 0;
 
-    if (hasCurrentDraw) {
-      if (isCurrentlyScheduled) {
-        // Room is drawing power during scheduled time (blue)
+    if (isCurrentlyScheduled) {
+      // Room is currently scheduled (red)
+      statusColor = 'status-reserved';
+      statusText = 'Currently Scheduled';
+
+      // If there's also power draw, it's in use
+      if (hasCurrentDraw) {
         statusColor = 'status-in-use';
         statusText = 'In Use (Scheduled)';
-      } else {
-        // Room is drawing power outside scheduled time (red)
-        statusColor = 'status-reserved';
-        statusText = 'Unscheduled Use';
       }
+    } else if (isApproachingSchedule) {
+      // Approaching scheduled time (red)
+      statusColor = 'status-reserved';
+      statusText = 'Upcoming Schedule Soon';
+    } else if (hasCurrentDraw) {
+      // Room is drawing power outside scheduled time (red)
+      statusColor = 'status-reserved';
+      statusText = 'Unscheduled Use';
     } else {
-      // No power draw (green)
+      // No power draw and no current/approaching schedule (green)
       statusColor = 'status-available';
-      statusText = 'No Activity';
+      statusText = 'Available';
     }
   } else {
     // Original status logic for non-dashboard view
@@ -117,17 +159,28 @@ const RoomCard: React.FC<RoomCardProps> = ({
         </div>
 
         <div className="flex-1">
-          {currentSchedule ? (
-            <div className="bg-secondary/10 p-3 rounded-md mb-4">
-              <p className="font-medium text-sm">{currentSchedule.title || `Room Booking`}</p>
+          {nextSchedule ? (
+            <div className={cn(
+              "p-3 rounded-md mb-4",
+              isCurrentlyScheduled || isApproachingSchedule
+                ? "bg-guardian-red/10"
+                : "bg-secondary/10"
+            )}>
+              <p className="font-medium text-sm">{nextSchedule.title || `Room Booking`}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {formatTime(currentSchedule.startTime)} - {formatTime(currentSchedule.endTime)}
+                {format(parseISO(`${nextSchedule.date}T00:00:00`), 'MMM d')} • {formatTime(nextSchedule.startTime)} - {formatTime(nextSchedule.endTime)}
               </p>
-              <p className="text-xs mt-1">By {currentSchedule.userName}</p>
+              <p className="text-xs mt-1">By {nextSchedule.userName}</p>
+              {isCurrentlyScheduled && (
+                <p className="text-xs mt-1 text-guardian-red font-medium">Currently in progress</p>
+              )}
+              {isApproachingSchedule && !isCurrentlyScheduled && (
+                <p className="text-xs mt-1 text-guardian-red font-medium">Starting soon</p>
+              )}
             </div>
           ) : (
             <div className="bg-muted/30 p-3 rounded-md mb-4">
-              <p className="text-sm text-muted-foreground">No current schedule</p>
+              <p className="text-sm text-muted-foreground">No upcoming schedule</p>
             </div>
           )}
         </div>
@@ -148,7 +201,11 @@ const RoomCard: React.FC<RoomCardProps> = ({
             <p className="text-xs text-muted-foreground">
               {isCurrentlyScheduled
                 ? "Room is currently scheduled"
-                : "No active schedule"}
+                : isApproachingSchedule
+                  ? "Schedule starting soon"
+                  : nextSchedule
+                    ? "Next schedule upcoming"
+                    : "No upcoming schedules"}
             </p>
           </div>
         )}

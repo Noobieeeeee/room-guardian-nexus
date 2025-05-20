@@ -16,12 +16,6 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Function to get schedules for today only
-  const getTodaySchedules = (allSchedules: Schedule[]): Schedule[] => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    return allSchedules.filter(schedule => schedule.date === today);
-  };
-
   useEffect(() => {
     // Check for logged in user
     const storedUser = localStorage.getItem('currentUser');
@@ -147,26 +141,16 @@ const Dashboard: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {/* Get schedules for today only */}
-                {(() => {
-                  const todaySchedules = getTodaySchedules(schedules);
-
-                  return rooms.slice(0, 6).map((room) => {
-                    // Filter today's schedules for this specific room
-                    const roomTodaySchedules = todaySchedules.filter(s => s.roomId === room.id);
-
-                    return (
-                      <RoomCard
-                        key={room.id}
-                        room={room}
-                        schedules={roomTodaySchedules}
-                        onAddSchedule={() => navigate('/rooms')}
-                        userRole={currentUser.role}
-                        dashboardView={true}
-                      />
-                    );
-                  });
-                })()}
+                {rooms.slice(0, 6).map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    schedules={schedules}
+                    onAddSchedule={() => navigate('/rooms')}
+                    userRole={currentUser.role}
+                    dashboardView={true}
+                  />
+                ))}
               </div>
             )}
           </main>
