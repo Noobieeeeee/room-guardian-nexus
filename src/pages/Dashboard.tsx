@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -11,8 +12,12 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { ChartContainer } from '@/components/ui/chart';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps } from 'recharts';
-import PowerSimulator from '@/components/PowerSimulator';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps, CartesianGrid } from 'recharts';
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
+import { LayoutDashboard, LineChart } from "lucide-react";
+import { Link } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -20,6 +25,7 @@ const Dashboard: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [powerUsage, setPowerUsage] = useState<{[key: number]: number}>({});
+  const [view, setView] = useState<string>("room");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -184,6 +190,12 @@ const Dashboard: React.FC = () => {
                     Monitor room availability and power status in real-time
                   </p>
                 </div>
+                <Link to="/power-analytics">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <LineChart className="h-4 w-4" />
+                    <span>Detailed Analytics</span>
+                  </Button>
+                </Link>
               </div>
 
               {/* Power usage overview */}
@@ -206,31 +218,77 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Power simulator for testing */}
-              <div className="mt-4">
-                <PowerSimulator rooms={rooms} />
+              {/* View switcher */}
+              <div className="mt-6 mb-4">
+                <Tabs value={view} onValueChange={setView} className="w-full">
+                  <TabsList className="grid w-full max-w-md grid-cols-2">
+                    <TabsTrigger value="room">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Room Cards
+                    </TabsTrigger>
+                    <TabsTrigger value="graph">
+                      <LineChart className="mr-2 h-4 w-4" />
+                      Power Graph
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="room" className="mt-4">
+                    {rooms.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-xl text-muted-foreground">No rooms available.</p>
+                        <p className="text-sm mt-2">Please add rooms in the Room Management page.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                        {rooms.slice(0, 6).map((room) => (
+                          <RoomCard
+                            key={room.id}
+                            room={room}
+                            schedules={schedules}
+                            onAddSchedule={() => navigate('/rooms')}
+                            userRole={currentUser.role}
+                            dashboardView={true}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="graph" className="mt-4">
+                    <div className="border rounded-lg p-4 bg-card">
+                      <h3 className="text-lg font-medium mb-4">Room Power Consumption</h3>
+                      <div className="h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={getChartData()}
+                            margin={{
+                              top: 20,
+                              right: 30,
+                              left: 20,
+                              bottom: 5,
+                            }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis label={{ value: 'Current (A)', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" fill="#7E69AB" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 text-center">
+                        <Link to="/power-analytics">
+                          <Button>
+                            <LineChart className="mr-2 h-4 w-4" />
+                            View Detailed Analytics
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
-
-            {rooms.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-xl text-muted-foreground">No rooms available.</p>
-                <p className="text-sm mt-2">Please add rooms in the Room Management page.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                {rooms.slice(0, 6).map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    schedules={schedules}
-                    onAddSchedule={() => navigate('/rooms')}
-                    userRole={currentUser.role}
-                    dashboardView={true}
-                  />
-                ))}
-              </div>
-            )}
           </main>
         </SidebarInset>
       </div>
