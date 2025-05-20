@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -11,8 +10,9 @@ import { getRooms, getSchedules } from '@/lib/api';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { ChartContainer } from '@/components/ui/chart';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps } from 'recharts';
+import PowerSimulator from '@/components/PowerSimulator';
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -157,6 +157,17 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border border-border/50 rounded-md p-2 shadow-lg">
+          <p className="font-medium">{payload[0].name}: {payload[0].value} A</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -184,23 +195,20 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <div className="mt-4">
-                  <ChartContainer
-                    config={{
-                      name: { label: "Room" },
-                      value: { label: "Current Draw (A)" },
-                    }}
-                    className="h-[200px]"
-                  >
+                  <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={getChartData()}>
                       <XAxis dataKey="name" />
                       <YAxis />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="value" fill="#8884d8" />
-                      <ChartTooltip>
-                        <ChartTooltipContent />
-                      </ChartTooltip>
                     </BarChart>
-                  </ChartContainer>
+                  </ResponsiveContainer>
                 </div>
+              </div>
+
+              {/* Power simulator for testing */}
+              <div className="mt-4">
+                <PowerSimulator rooms={rooms} />
               </div>
             </div>
 
