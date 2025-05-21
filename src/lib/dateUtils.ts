@@ -45,12 +45,20 @@ export const formatTime = (timeString: string): string => {
     // If it's a full ISO timestamp with timezone (like 2025-05-17T14:30:00+00:00)
     if (timeString.includes('T') && (timeString.includes('+') || timeString.includes('Z'))) {
       const date = parseISO(timeString);
+      // Check if seconds are needed (for real-time updates)
+      if (timeString.includes(':') && timeString.split(':').length > 2) {
+        return format(date, 'h:mm:ss a'); // e.g., "2:30:15 PM"
+      }
       return format(date, 'h:mm a'); // e.g., "2:30 PM"
     }
 
     // If it's a partial ISO timestamp (like 2025-05-17T14:30:00)
     if (timeString.includes('T')) {
       const date = parseISO(timeString);
+      // Check if seconds are needed (for real-time updates)
+      if (timeString.includes(':') && timeString.split(':').length > 2) {
+        return format(date, 'h:mm:ss a'); // e.g., "2:30:15 PM"
+      }
       return format(date, 'h:mm a');
     }
 
@@ -64,6 +72,13 @@ export const formatTime = (timeString: string): string => {
         const date = new Date();
         date.setHours(hours);
         date.setMinutes(minutes);
+
+        // If there are seconds in the time string (like 14:30:45)
+        if (timeParts.length > 2 && !isNaN(parseInt(timeParts[2], 10))) {
+          date.setSeconds(parseInt(timeParts[2], 10));
+          return format(date, 'h:mm:ss a'); // e.g., "2:30:45 PM"
+        }
+
         return format(date, 'h:mm a'); // e.g., "2:30 PM"
       }
     }

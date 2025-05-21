@@ -6,6 +6,25 @@ import { cn } from '@/lib/utils';
 import { format, parseISO, isWithinInterval, isFuture, addMinutes, isAfter, isBefore, differenceInMinutes } from 'date-fns';
 import { formatTime } from '@/lib/dateUtils';
 
+// Commented out imports for the override functionality
+/*
+import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { updateRoomStatus } from '@/lib/api';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+*/
+
 interface RoomCardProps {
   room: Room;
   schedules: Schedule[];
@@ -23,6 +42,42 @@ const RoomCard: React.FC<RoomCardProps> = ({
 }) => {
   const roomSchedules = schedules.filter(schedule => schedule.roomId === room.id);
   const now = new Date();
+
+  // State for override toggle and confirmation dialog - Commented out for now
+  /*
+  const [isOverrideEnabled, setIsOverrideEnabled] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingOverrideState, setPendingOverrideState] = useState(false);
+
+  // Handle toggle click - show confirmation dialog
+  const handleOverrideToggle = (newState: boolean) => {
+    setPendingOverrideState(newState);
+    setShowConfirmDialog(true);
+  };
+
+  // Handle confirmation
+  const handleConfirmOverride = async () => {
+    try {
+      // Update the room status in the database
+      const newStatus = pendingOverrideState ? 'in-use' : 'reserved';
+      await updateRoomStatus(room.id, newStatus);
+
+      // Update local state
+      setIsOverrideEnabled(pendingOverrideState);
+      setShowConfirmDialog(false);
+
+      toast.success(`Room status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Failed to update room status:', error);
+      toast.error('Failed to update room status');
+    }
+  };
+
+  // Handle cancel
+  const handleCancelOverride = () => {
+    setShowConfirmDialog(false);
+  };
+  */
 
   // Find the next nearest schedule
   const getNextNearestSchedule = (): Schedule | null => {
@@ -73,10 +128,23 @@ const RoomCard: React.FC<RoomCardProps> = ({
   // Status logic for dashboard view based on power draw, schedule, and time
   let statusColor = 'status-available'; // Default green
   let statusText = 'Available';
+  let isActiveNow = false; // Track if the room is actively being used right now
 
   if (dashboardView) {
     const hasCurrentDraw = room.currentDraw && room.currentDraw > 0;
 
+    // Check if the current draw was updated within the last 5 seconds
+    const lastUpdatedTime = room.lastUpdated ? new Date(room.lastUpdated) : null;
+    const isRecentlyUpdated = lastUpdatedTime &&
+      (new Date().getTime() - lastUpdatedTime.getTime() < 5000); // 5 seconds
+
+    // Check if this is an unscheduled use case (power draw but no schedule)
+    const isUnscheduledUse = hasCurrentDraw && !isCurrentlyScheduled && !isApproachingSchedule;
+
+    // Set active flag if there's current draw and it was recently updated
+    isActiveNow = hasCurrentDraw && isRecentlyUpdated;
+
+    // If override is enabled, treat as scheduled even if it's not
     if (isCurrentlyScheduled) {
       // Room is currently scheduled (red)
       statusColor = 'status-reserved';
@@ -85,16 +153,33 @@ const RoomCard: React.FC<RoomCardProps> = ({
       // If there's also power draw, it's in use
       if (hasCurrentDraw) {
         statusColor = 'status-in-use';
-        statusText = 'In Use (Scheduled)';
+        statusText = isRecentlyUpdated ? 'Active Now (Scheduled)' : 'In Use (Scheduled)';
       }
     } else if (isApproachingSchedule) {
       // Approaching scheduled time (red)
       statusColor = 'status-reserved';
       statusText = 'Upcoming Schedule Soon';
-    } else if (hasCurrentDraw) {
+
+      // If there's power draw, show it's being used
+      if (hasCurrentDraw) {
+        statusText = isRecentlyUpdated ? 'Active Now (Pre-Schedule)' : 'In Use (Pre-Schedule)';
+      }
+    } else if (isUnscheduledUse) {
       // Room is drawing power outside scheduled time (red)
       statusColor = 'status-reserved';
-      statusText = 'Unscheduled Use';
+      statusText = isRecentlyUpdated ? 'Active Now (Unscheduled)' : 'Unscheduled Use';
+
+      /* Commented out override functionality
+      if (isOverrideEnabled) {
+        // Override is enabled, treat as normal use (blue)
+        statusColor = 'status-in-use';
+        statusText = 'Override Active';
+      } else {
+        // Room is drawing power outside scheduled time (red)
+        statusColor = 'status-reserved';
+        statusText = 'Unscheduled Use';
+      }
+      */
     } else {
       // No power draw and no current/approaching schedule (green)
       statusColor = 'status-available';
@@ -121,12 +206,20 @@ const RoomCard: React.FC<RoomCardProps> = ({
     }
   }
 
-  const getStatusBg = (statusColor: string) => {
+  const getStatusBg = (statusColor: string, isActive: boolean = false) => {
+    // Higher opacity for active rooms
+    const activeOpacity = isActive ? '20' : '10';
+    const activeBorderOpacity = isActive ? '50' : '30';
+
     switch(statusColor) {
-      case 'status-available': return 'bg-guardian-green/10 border-guardian-green/30';
-      case 'status-in-use': return 'bg-guardian-blue/10 border-guardian-blue/30';
-      case 'status-reserved': return 'bg-guardian-red/10 border-guardian-red/30';
-      default: return 'bg-gray-100 border-gray-300';
+      case 'status-available':
+        return `bg-guardian-green/${activeOpacity} border-guardian-green/${activeBorderOpacity}`;
+      case 'status-in-use':
+        return `bg-guardian-blue/${activeOpacity} border-guardian-blue/${activeBorderOpacity}`;
+      case 'status-reserved':
+        return `bg-guardian-red/${activeOpacity} border-guardian-red/${activeBorderOpacity}`;
+      default:
+        return 'bg-gray-100 border-gray-300';
     }
   };
 
@@ -134,15 +227,19 @@ const RoomCard: React.FC<RoomCardProps> = ({
   const formattedTime = formatTime(room.lastUpdated);
 
   return (
-    <Card className={cn("h-full overflow-hidden border-2 transition-all duration-300 guardian-card-shadow flex flex-col",
-      getStatusBg(statusColor)
+    <Card className={cn("h-full overflow-hidden border-2 transition-all duration-700 guardian-card-shadow flex flex-col",
+      getStatusBg(statusColor, isActiveNow)
     )}>
       <CardHeader className="p-4 pb-0">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold">{room.name}</CardTitle>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{statusText}</span>
-            <div className={cn("status-indicator animate-pulse-subtle", statusColor)}></div>
+            <span className="text-sm font-medium transition-all duration-700">{statusText}</span>
+            <div className={cn(
+              "status-indicator transition-all duration-700",
+              statusColor,
+              isActiveNow ? "animate-pulse" : "animate-pulse-subtle"
+            )}></div>
           </div>
         </div>
       </CardHeader>
@@ -150,11 +247,25 @@ const RoomCard: React.FC<RoomCardProps> = ({
         <div className="text-sm text-muted-foreground mb-4">
           <p className="flex justify-between">
             <span>Current draw:</span>
-            <span className="font-medium">{room.currentDraw !== null ? `${room.currentDraw} A` : 'No data'}</span>
+            <span className={cn(
+              "font-medium transition-all duration-700",
+              isActiveNow ? "text-guardian-red" : ""
+            )}>
+              <span className="transition-all duration-700">
+                {room.currentDraw !== null ? `${room.currentDraw} A` : 'No data'}
+              </span>
+              {isActiveNow && <span className="ml-1 inline-block animate-pulse">●</span>}
+            </span>
           </p>
           <p className="flex justify-between mt-1">
             <span>Last updated:</span>
-            <span>{formattedTime}</span>
+            <span className={cn(
+              "transition-all duration-700",
+              isActiveNow ? "text-guardian-red" : ""
+            )}>
+              <span className="transition-all duration-700">{formattedTime}</span>
+              {isActiveNow && <span className="ml-1 text-xs">(now)</span>}
+            </span>
           </p>
         </div>
 
@@ -197,8 +308,27 @@ const RoomCard: React.FC<RoomCardProps> = ({
         )}
 
         {dashboardView && (
-          <div className="mt-auto text-center">
-            <p className="text-xs text-muted-foreground">
+          <div className="mt-auto">
+            {/* Show override toggle for unscheduled use - Commented out for now
+            {room.currentDraw && room.currentDraw > 0 && !isCurrentlyScheduled && !isApproachingSchedule && (
+              <div className="flex items-center justify-between mb-2 p-2 bg-guardian-red/10 rounded-md">
+                <div className="flex flex-col">
+                  <Label htmlFor={`override-${room.id}`} className="text-sm font-medium">
+                    Override Unscheduled Use
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    Allow power usage outside scheduled times
+                  </span>
+                </div>
+                <Switch
+                  id={`override-${room.id}`}
+                  checked={isOverrideEnabled}
+                  onCheckedChange={handleOverrideToggle}
+                />
+              </div>
+            )} */}
+
+            <p className="text-xs text-muted-foreground text-center">
               {isCurrentlyScheduled
                 ? "Room is currently scheduled"
                 : isApproachingSchedule
@@ -209,6 +339,29 @@ const RoomCard: React.FC<RoomCardProps> = ({
             </p>
           </div>
         )}
+
+        {/* Confirmation Dialog - Commented out for now
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingOverrideState ? "Enable Override?" : "Disable Override?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingOverrideState
+                  ? "This will allow the room to be used outside of scheduled times. Continue?"
+                  : "This will mark the room as having unscheduled use. Continue?"}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelOverride}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmOverride}>
+                {pendingOverrideState ? "Enable Override" : "Disable Override"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        */}
       </CardContent>
     </Card>
   );

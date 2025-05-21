@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { User, UserRole } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Settings, Activity, LogOut, Users, Building, CalendarDays, User as UserIcon, LineChart } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, LogOut, Users, Building, CalendarDays, User as UserIcon } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -54,12 +54,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
       icon: LayoutDashboard,
       allowedRoles: ['admin'] as UserRole[]
     },
-    {
-      path: '/power-analytics',
-      name: 'Power Analytics',
-      icon: LineChart,
-      allowedRoles: ['admin'] as UserRole[]
-    },
+
     {
       path: '/calendar',
       name: 'Calendar',

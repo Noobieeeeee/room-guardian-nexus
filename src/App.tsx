@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import PowerAnalytics from "./pages/PowerAnalytics";
+
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import Logs from "./pages/Logs";
@@ -29,7 +29,7 @@ const App = () => {
       await initializeDatabase();
       setIsInitializing(false);
     };
-    
+
     initialize();
   }, []);
 
@@ -52,7 +52,6 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/power-analytics" element={<PowerAnalytics />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/users" element={<Users />} />
               <Route path="/rooms" element={<Rooms />} />

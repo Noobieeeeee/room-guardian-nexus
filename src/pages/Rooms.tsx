@@ -300,20 +300,20 @@ const Rooms: React.FC = () => {
             <Card className="border-0 shadow-none">
               <CardContent className="p-6">
                 <Tabs
-                  defaultValue="booked"
+                  defaultValue="add"
                   value={activeTab}
                   onValueChange={setActiveTab}
                   className="w-full"
                 >
                   <div className="mb-6">
                     <TabsList className="grid grid-cols-2 w-full max-w-md">
-                      <TabsTrigger value="booked" className="flex items-center gap-2">
-                        <List className="h-4 w-4" />
-                        My Bookings
-                      </TabsTrigger>
                       <TabsTrigger value="add" className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
+                        <List className="h-4 w-4" />
                         Book a Room
+                      </TabsTrigger>
+                      <TabsTrigger value="booked" className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        My Bookings
                       </TabsTrigger>
                     </TabsList>
                   </div>
