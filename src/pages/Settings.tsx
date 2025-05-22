@@ -14,6 +14,7 @@ import { User } from '@/lib/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { signOut } from '@/lib/auth';
+import { getSystemSettings, updateSystemSettings, SystemSettings } from '@/lib/settingsService';
 
 const Settings: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -25,6 +26,7 @@ const Settings: React.FC = () => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [sensorThreshold, setSensorThreshold] = useState('0.5');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSystemSettingsLoading, setIsSystemSettingsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,11 +37,28 @@ const Settings: React.FC = () => {
       setCurrentUser(user);
       setName(user.name);
       setEmail(user.email);
+      
+      // Load system settings if user is admin
+      if (user.role === 'admin') {
+        loadSystemSettings();
+      }
     } else {
       // No user found, redirect to login
       navigate('/');
     }
   }, [navigate]);
+  
+  const loadSystemSettings = async () => {
+    setIsSystemSettingsLoading(true);
+    try {
+      const settings = await getSystemSettings();
+      setSensorThreshold(settings.sensorThreshold.toString());
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setIsSystemSettingsLoading(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +133,37 @@ const Settings: React.FC = () => {
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would send this to an API
-    toast.success('Settings updated successfully');
+    // Save email notification preferences - in a real app, we would send this to an API
+    toast.success('Preferences updated successfully');
+  };
+
+  const handleUpdateSystemSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSystemSettingsLoading(true);
+    
+    try {
+      const thresholdValue = parseFloat(sensorThreshold);
+      
+      // Validate input
+      if (isNaN(thresholdValue)) {
+        toast.error('Please enter a valid number');
+        return;
+      }
+      
+      const success = await updateSystemSettings({
+        sensorThreshold: thresholdValue
+      });
+      
+      if (success) {
+        // Refresh system settings
+        loadSystemSettings();
+      }
+    } catch (error) {
+      console.error('Error updating system settings:', error);
+      toast.error('Failed to update system settings');
+    } finally {
+      setIsSystemSettingsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -307,7 +355,7 @@ const Settings: React.FC = () => {
                       <CardTitle>System Settings</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <form onSubmit={handleUpdateSettings} className="space-y-4">
+                      <form onSubmit={handleUpdateSystemSettings} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="sensorThreshold">
                             Sensor Threshold (Amperes)
@@ -325,6 +373,7 @@ const Settings: React.FC = () => {
                               max="5"
                               step="0.1"
                               className="w-32"
+                              disabled={isSystemSettingsLoading}
                             />
                             <span>Amperes</span>
                           </div>
@@ -333,8 +382,9 @@ const Settings: React.FC = () => {
                         <Button 
                           type="submit" 
                           className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
+                          disabled={isSystemSettingsLoading}
                         >
-                          Save System Settings
+                          {isSystemSettingsLoading ? 'Saving...' : 'Save System Settings'}
                         </Button>
                       </form>
                     </CardContent>

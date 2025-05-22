@@ -10,7 +10,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   useSidebar,
-  SidebarSeparator
+  SidebarSeparator,
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { User, UserRole } from '@/lib/types';
@@ -114,15 +115,16 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center p-4">
+        <div className="flex items-center justify-between p-4">
           <div className={cn(
             "text-guardian-yellow font-bold text-2xl transition-all duration-300",
             state === "collapsed" ? "opacity-0 scale-95" : "opacity-100 scale-100"
           )}>RoomGuardian</div>
+          <SidebarTrigger />
         </div>
       </SidebarHeader>
 
-      {/* Navigation Icons - Moved to top */}
+      {/* Navigation Icons */}
       <SidebarContent className="mt-1">
         <SidebarMenu>
           {navLinks
@@ -146,7 +148,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
 
       <SidebarSeparator className="mt-2" />
 
-      {/* User profile section - Moved below navigation */}
+      {/* User profile section */}
       <div className={cn(
         "px-4 py-2 mb-2 transition-all duration-300",
         state === "collapsed" ? "opacity-0" : "opacity-100"
