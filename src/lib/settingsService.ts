@@ -15,11 +15,12 @@ const DEFAULT_SETTINGS: SystemSettings = {
 // Get system settings from Supabase
 export async function getSystemSettings(): Promise<SystemSettings> {
   try {
+    // Use a more direct query approach to avoid TypeScript errors
     const { data, error } = await supabase
       .from(SETTINGS_TABLE)
       .select('*')
       .eq('id', 1)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     
@@ -27,7 +28,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     if (!data) return DEFAULT_SETTINGS;
     
     return {
-      sensorThreshold: data.sensor_threshold,
+      sensorThreshold: data.sensor_threshold as number,
     };
   } catch (error) {
     console.error('Error fetching system settings:', error);
@@ -44,15 +45,10 @@ export async function updateSystemSettings(settings: SystemSettings): Promise<bo
       return false;
     }
     
-    const { error } = await supabase
-      .from(SETTINGS_TABLE)
-      .upsert(
-        { 
-          id: 1, 
-          sensor_threshold: settings.sensorThreshold,
-        },
-        { onConflict: 'id' }
-      );
+    // Use a more direct approach to avoid TypeScript errors
+    const { error } = await supabase.rpc('update_system_settings', {
+      p_sensor_threshold: settings.sensorThreshold
+    });
 
     if (error) throw error;
     

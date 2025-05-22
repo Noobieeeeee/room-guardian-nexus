@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -17,7 +16,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import AppSidebar from '@/components/AppSidebar';
 import { getActivityLogs, getRooms } from '@/lib/api';
 import { toast } from 'sonner';
-import { RefreshCw, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronUp, Filter, Download } from 'lucide-react';
+import { downloadAsCSV, formatDateForFilename } from '@/lib/exportUtils';
 
 const Logs: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -59,6 +59,37 @@ const Logs: React.FC = () => {
   // Function to manually refresh the logs
   const handleRefresh = () => {
     fetchData();
+  };
+
+  // Function to download logs as CSV
+  const handleDownloadLogs = () => {
+    if (filteredLogs.length === 0) {
+      toast.error('No log data to download');
+      return;
+    }
+
+    try {
+      // Format logs data for CSV
+      const formattedLogs = filteredLogs.map(log => ({
+        Date: log.date,
+        Time: log.time,
+        Room: log.roomName,
+        User: log.userName,
+        Status: log.status.charAt(0).toUpperCase() + log.status.slice(1),
+        Details: log.details || ''
+      }));
+
+      // Generate filename with current date
+      const filename = `roomguardian_logs_${formatDateForFilename()}`;
+      
+      // Download as CSV
+      downloadAsCSV(formattedLogs, filename);
+      
+      toast.success('Log data downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading logs:', error);
+      toast.error('Failed to download logs');
+    }
   };
 
   useEffect(() => {
@@ -305,6 +336,20 @@ const Logs: React.FC = () => {
                   <span className="text-xs text-muted-foreground">
                     Last updated: {format(lastRefreshed, 'h:mm:ss a')}
                   </span>
+                  
+                  {/* Download Button */}
+                  <Button
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleDownloadLogs}
+                    disabled={filteredLogs.length === 0}
+                    className="flex items-center gap-1 mr-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Download</span>
+                  </Button>
+                  
+                  {/* Refresh Button */}
                   <Button
                     variant="outline"
                     size="sm"

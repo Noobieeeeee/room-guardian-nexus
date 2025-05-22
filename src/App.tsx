@@ -15,6 +15,7 @@ import Users from "./pages/Users";
 import Rooms from "./pages/Rooms";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase } from "./lib/dbService";
+import { setupSystemSettingsTable, setupSystemSettingsRPC } from "./lib/dbSetupExtended";
 
 // Initialize CSS variables for the sidebar
 import "./styles/sidebar.css";
@@ -27,6 +28,11 @@ const App = () => {
   useEffect(() => {
     const initialize = async () => {
       await initializeDatabase();
+      
+      // Setup additional database components
+      await setupSystemSettingsTable();
+      await setupSystemSettingsRPC();
+      
       setIsInitializing(false);
     };
 
