@@ -7,7 +7,6 @@ export interface SystemSettings {
   sensorThreshold: number;
 }
 
-const SETTINGS_TABLE = 'system_settings';
 const DEFAULT_SETTINGS: SystemSettings = {
   sensorThreshold: 0.5,
 };
@@ -15,12 +14,12 @@ const DEFAULT_SETTINGS: SystemSettings = {
 // Get system settings from Supabase
 export async function getSystemSettings(): Promise<SystemSettings> {
   try {
-    // Use a more direct query approach to avoid TypeScript errors
+    // Use a direct SQL query approach
     const { data, error } = await supabase
-      .from(SETTINGS_TABLE)
-      .select('*')
+      .from('system_settings')
+      .select('sensor_threshold')
       .eq('id', 1)
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
     
@@ -45,10 +44,11 @@ export async function updateSystemSettings(settings: SystemSettings): Promise<bo
       return false;
     }
     
-    // Use a more direct approach to avoid TypeScript errors
-    const { error } = await supabase.rpc('update_system_settings', {
-      p_sensor_threshold: settings.sensorThreshold
-    });
+    // Use a direct SQL query approach
+    const { error } = await supabase
+      .from('system_settings')
+      .update({ sensor_threshold: settings.sensorThreshold })
+      .eq('id', 1);
 
     if (error) throw error;
     

@@ -1,12 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addDays, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Schedule, User } from '@/lib/types';
 import ScheduleDetailModal from '@/components/ScheduleDetailModal';
 import { cn } from '@/lib/utils';
 import { parseISO } from 'date-fns';
+import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface CalendarViewProps {
   schedules: Schedule[];
@@ -17,6 +20,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Calculate calendar days
   const monthStart = startOfMonth(currentDate);
@@ -109,6 +114,41 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
     }
   };
 
+  // Function to download calendar as PDF
+  const downloadAsPDF = async () => {
+    if (!calendarRef.current) return;
+    
+    try {
+      setIsDownloading(true);
+      toast.info("Preparing PDF download...");
+      
+      const calendarElement = calendarRef.current;
+      const canvas = await html2canvas(calendarElement, {
+        scale: 2, // Higher scale for better quality
+        logging: false,
+        useCORS: true
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Calculate dimensions
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.text(`Room Schedule - ${format(currentDate, dateFormat)}`, 10, 10);
+      pdf.addImage(imgData, 'PNG', 0, 15, imgWidth, imgHeight);
+      
+      pdf.save(`room-schedule-${format(currentDate, 'yyyy-MM')}.pdf`);
+      toast.success("Calendar downloaded successfully");
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className="calendar-container border rounded-lg shadow-sm">
       <div className="calendar-header bg-white p-4 flex items-center justify-between border-b">
@@ -122,6 +162,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
             onClick={goToToday}
           >
             Today
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={downloadAsPDF}
+            disabled={isDownloading}
+            className="flex items-center gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Export PDF
           </Button>
           <Button 
             variant="ghost" 
@@ -140,7 +190,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ schedules, currentUser }) =
         </div>
       </div>
       
-      <div className="bg-white">
+      <div className="bg-white" ref={calendarRef}>
         {/* Weekday headers */}
         <div className="grid grid-cols-7">
           {weekdays.map(day => (

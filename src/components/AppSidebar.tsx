@@ -120,7 +120,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
             "text-guardian-yellow font-bold text-2xl transition-all duration-300",
             state === "collapsed" ? "opacity-0 scale-95" : "opacity-100 scale-100"
           )}>RoomGuardian</div>
-          <SidebarTrigger />
+          {/* Removed the duplicate SidebarTrigger here */}
         </div>
       </SidebarHeader>
 
