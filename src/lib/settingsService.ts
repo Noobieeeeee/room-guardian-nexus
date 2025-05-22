@@ -14,20 +14,17 @@ const DEFAULT_SETTINGS: SystemSettings = {
 // Get system settings from Supabase
 export async function getSystemSettings(): Promise<SystemSettings> {
   try {
-    // Use a direct SQL query approach
+    // Use the RPC function
     const { data, error } = await supabase
-      .from('system_settings')
-      .select('sensor_threshold')
-      .eq('id', 1)
-      .single();
+      .rpc('get_system_settings');
 
     if (error) throw error;
     
     // If no settings found, return defaults
-    if (!data) return DEFAULT_SETTINGS;
+    if (!data || data.length === 0) return DEFAULT_SETTINGS;
     
     return {
-      sensorThreshold: data.sensor_threshold as number,
+      sensorThreshold: data[0].sensor_threshold as number,
     };
   } catch (error) {
     console.error('Error fetching system settings:', error);
@@ -44,16 +41,21 @@ export async function updateSystemSettings(settings: SystemSettings): Promise<bo
       return false;
     }
     
-    // Use a direct SQL query approach
-    const { error } = await supabase
-      .from('system_settings')
-      .update({ sensor_threshold: settings.sensorThreshold })
-      .eq('id', 1);
+    // Use the RPC function
+    const { data, error } = await supabase
+      .rpc('update_system_settings', {
+        p_sensor_threshold: settings.sensorThreshold
+      });
 
     if (error) throw error;
     
-    toast.success('System settings updated successfully');
-    return true;
+    if (data === true) {
+      toast.success('System settings updated successfully');
+      return true;
+    } else {
+      toast.error('Failed to update system settings');
+      return false;
+    }
   } catch (error) {
     console.error('Error updating system settings:', error);
     toast.error('Failed to update system settings');

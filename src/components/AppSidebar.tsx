@@ -120,12 +120,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
             "text-guardian-yellow font-bold text-2xl transition-all duration-300",
             state === "collapsed" ? "opacity-0 scale-95" : "opacity-100 scale-100"
           )}>RoomGuardian</div>
-          {/* Removed the duplicate SidebarTrigger here */}
+          {/* SidebarTrigger is now only in the SidebarContent */}
         </div>
       </SidebarHeader>
 
       {/* Navigation Icons */}
       <SidebarContent className="mt-1">
+        <SidebarTrigger className="self-end mr-2 mb-2" />
         <SidebarMenu>
           {navLinks
             .filter(link => link.allowedRoles.includes(userRole))

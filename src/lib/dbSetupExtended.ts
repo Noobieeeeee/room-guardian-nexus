@@ -15,11 +15,11 @@ export async function setupSystemSettingsTable() {
 
     // Create table if it doesn't exist
     if (!tableExists) {
-      // Execute raw SQL to create the table since we don't have an RPC for it
-      const { error: createError } = await supabase.rpc('create_system_settings_table');
+      // Call the RPC function to create the table
+      const createTable = await supabase.rpc('create_system_settings_table');
       
-      if (createError) {
-        console.error('Error creating system_settings table:', createError);
+      if (createTable.error) {
+        console.error('Error creating system_settings table:', createTable.error);
         return false;
       }
     }
@@ -33,7 +33,7 @@ export async function setupSystemSettingsTable() {
 
 export async function setupSystemSettingsRPC() {
   try {
-    // Execute raw SQL to create the RPC function since we don't have it yet
+    // Call the RPC function to create the update_system_settings function
     const { error } = await supabase.rpc('create_update_settings_function');
     
     if (error) {
