@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -9,11 +8,12 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { toast } from 'sonner';
 import { getRooms, getSchedules } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
+import { getSystemSettings } from '@/lib/settingsService';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, TooltipProps, CartesianGrid, Legend } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutDashboard, LineChart as LineChartIcon } from "lucide-react";
-import { format } from 'date-fns';
+import { format, parseISO, isWithinInterval } from 'date-fns';
 
 // Interface for power time series data
 interface PowerTimeData {
@@ -75,6 +75,77 @@ const Dashboard: React.FC = () => {
 
     return () => clearInterval(intervalId);
   }, [isLoading, rooms, roomStatuses]);
+
+  // Effect for monitoring and updating room statuses
+  useEffect(() => {
+    if (isLoading || !rooms.length) return;
+
+    const monitorRoomStatuses = async () => {
+      try {
+        // Get current system settings
+        const settings = await getSystemSettings();
+        const threshold = settings.sensor_threshold;
+
+        // Get current schedules for today
+        const currentSchedules = schedules.filter(schedule => {
+          if (!schedule.date) return false;
+          const scheduleDate = new Date(schedule.date).toDateString();
+          const today = new Date().toDateString();
+          return scheduleDate === today;
+        });
+
+        // Check each room and update status if needed
+        for (const room of rooms) {
+          const now = new Date();
+          
+          // Check if room has current schedule
+          const hasCurrentSchedule = currentSchedules.some(schedule => {
+            if (schedule.roomId !== room.id) return false;
+            
+            const startDateTime = parseISO(`${schedule.date}T${schedule.startTime}`);
+            const endDateTime = parseISO(`${schedule.date}T${schedule.endTime}`);
+            
+            return isWithinInterval(now, { start: startDateTime, end: endDateTime });
+          });
+
+          // Determine new status based on current draw and schedule
+          let newStatus = 'available';
+          const currentDraw = room.currentDraw || 0;
+
+          if (currentDraw > threshold) {
+            newStatus = hasCurrentSchedule ? 'scheduled' : 'unscheduled_use';
+          }
+
+          // Update room status in database
+          const { error } = await supabase
+            .from('room_status')
+            .upsert({
+              room_id: room.id,
+              room_name: room.name,
+              status: newStatus,
+              current_draw: currentDraw,
+              last_updated: new Date().toISOString()
+            });
+
+          if (error) {
+            console.error(`Error updating status for room ${room.name}:`, error);
+          } else {
+            console.log(`Updated room ${room.name} status to: ${newStatus}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error monitoring room statuses:', error);
+      }
+    };
+
+    // Initial status check
+    monitorRoomStatuses();
+
+    // Set up interval to check and update statuses every 10 seconds
+    const statusMonitorInterval = setInterval(monitorRoomStatuses, 10000);
+
+    return () => clearInterval(statusMonitorInterval);
+  }, [isLoading, rooms, schedules]);
 
   // Debug effect to monitor powerTimeData changes
   useEffect(() => {
@@ -202,7 +273,7 @@ const Dashboard: React.FC = () => {
       .channel('room-status-updates')
       .on('postgres_changes',
         {
-          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'room_status'
         },
@@ -241,12 +312,12 @@ const Dashboard: React.FC = () => {
       )
       .subscribe();
 
-    // Set up real-time listener for power data updates (backup)
+    // Set up real-time listener for power data updates
     const powerDataChannel = supabase
       .channel('room-power-updates')
       .on('postgres_changes',
         {
-          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'room_power_data'
         },
