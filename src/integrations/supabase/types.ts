@@ -190,6 +190,30 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean
+          id: number
+          sensor_threshold: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean
+          id?: number
+          sensor_threshold?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean
+          id?: number
+          sensor_threshold?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -245,6 +269,13 @@ export type Database = {
           recorded_at: string
         }[]
       }
+      get_system_settings: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          sensor_threshold: number
+          email_notifications: boolean
+        }[]
+      }
       insert_activity_log: {
         Args: {
           p_room_id: number
@@ -272,6 +303,10 @@ export type Database = {
           user_id: number | null
           user_name: string
         }[]
+      }
+      update_system_settings: {
+        Args: { p_sensor_threshold?: number; p_email_notifications?: boolean }
+        Returns: boolean
       }
     }
     Enums: {

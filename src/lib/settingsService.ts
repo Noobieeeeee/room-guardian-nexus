@@ -9,9 +9,7 @@ export interface SystemSettings {
 export async function getSystemSettings(): Promise<SystemSettings> {
   try {
     const { data, error } = await supabase
-      .from('system_settings')
-      .select('*')
-      .single();
+      .rpc('get_system_settings');
 
     if (error) {
       console.error('Error fetching system settings:', error);
@@ -22,9 +20,12 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       };
     }
 
+    // RPC returns an array, so get the first item
+    const settings = data?.[0];
+    
     return {
-      sensor_threshold: data.sensor_threshold || 0.5,
-      email_notifications: data.email_notifications !== false
+      sensor_threshold: settings?.sensor_threshold || 0.5,
+      email_notifications: settings?.email_notifications !== false
     };
   } catch (error) {
     console.error('Error in getSystemSettings:', error);
@@ -37,39 +38,18 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
 export async function updateSystemSettings(settings: Partial<SystemSettings>): Promise<boolean> {
   try {
-    // First, try to get existing settings
-    const { data: existing } = await supabase
-      .from('system_settings')
-      .select('id')
-      .single();
+    const { data, error } = await supabase
+      .rpc('update_system_settings', {
+        p_sensor_threshold: settings.sensor_threshold,
+        p_email_notifications: settings.email_notifications
+      });
 
-    if (existing) {
-      // Update existing record
-      const { error } = await supabase
-        .from('system_settings')
-        .update(settings)
-        .eq('id', existing.id);
-
-      if (error) {
-        console.error('Error updating system settings:', error);
-        return false;
-      }
-    } else {
-      // Insert new record
-      const { error } = await supabase
-        .from('system_settings')
-        .insert([{
-          sensor_threshold: settings.sensor_threshold || 0.5,
-          email_notifications: settings.email_notifications !== false
-        }]);
-
-      if (error) {
-        console.error('Error inserting system settings:', error);
-        return false;
-      }
+    if (error) {
+      console.error('Error updating system settings:', error);
+      return false;
     }
 
-    return true;
+    return data === true;
   } catch (error) {
     console.error('Error in updateSystemSettings:', error);
     return false;
