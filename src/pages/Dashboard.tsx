@@ -22,6 +22,16 @@ interface PowerTimeData {
   [key: string]: string | number; // Room names as keys with power values
 }
 
+// Interface for room status from database
+interface RoomStatusData {
+  id: number;
+  room_id: number;
+  room_name: string;
+  status: 'available' | 'scheduled' | 'unscheduled_use';
+  current_draw: number;
+  last_updated: string;
+}
+
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -31,6 +41,7 @@ const Dashboard: React.FC = () => {
   const [powerTimeData, setPowerTimeData] = useState<PowerTimeData[]>([]);
   const [view, setView] = useState<string>("room");
   const [selectedRoom, setSelectedRoom] = useState<string>("all");
+  const [roomStatuses, setRoomStatuses] = useState<{[key: number]: RoomStatusData}>({});
   const navigate = useNavigate();
 
   // Effect for auto-refreshing the chart data every 3 seconds
@@ -51,12 +62,8 @@ const Dashboard: React.FC = () => {
 
         // Copy current values for all rooms
         rooms.forEach(room => {
-          // Use the previous value with a small increment/decrement to make transitions smoother
-          const prevValue = prevData.length > 0 ? (prevData[prevData.length - 1][room.name] || 0) : 0;
-          const currentValue = room.currentDraw || 0;
-
-          // Smooth the transition by moving slightly toward the current value
-          // This creates a more continuous line rather than abrupt changes
+          // Use the current value from room status or fallback to room data
+          const currentValue = roomStatuses[room.id]?.current_draw || room.currentDraw || 0;
           newPoint[room.name] = currentValue;
         });
 
@@ -67,7 +74,7 @@ const Dashboard: React.FC = () => {
     }, 3000); // Update every 3 seconds
 
     return () => clearInterval(intervalId);
-  }, [isLoading, rooms]);
+  }, [isLoading, rooms, roomStatuses]);
 
   // Debug effect to monitor powerTimeData changes
   useEffect(() => {
@@ -80,7 +87,6 @@ const Dashboard: React.FC = () => {
       // Force a small update to powerTimeData to trigger a re-render
       setPowerTimeData(prevData => {
         if (prevData.length === 0) return prevData;
-
         // Create a shallow copy to trigger a re-render
         return [...prevData];
       });
@@ -166,6 +172,21 @@ const Dashboard: React.FC = () => {
         } else {
           console.error('Invalid schedules data:', schedulesData);
         }
+
+        // Fetch initial room statuses
+        const { data: statusData, error: statusError } = await supabase
+          .from('room_status')
+          .select('*');
+
+        if (statusError) {
+          console.error('Error fetching room statuses:', statusError);
+        } else if (statusData) {
+          const statusMap: {[key: number]: RoomStatusData} = {};
+          statusData.forEach((status: any) => {
+            statusMap[status.room_id] = status;
+          });
+          setRoomStatuses(statusMap);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load dashboard data');
@@ -176,30 +197,51 @@ const Dashboard: React.FC = () => {
 
     fetchData();
 
-    // Function to update power time data for the charts
-    const updatePowerTimeData = (roomId: number, roomName: string, currentDraw: number, timestamp: string, allRooms: Room[]) => {
-      setPowerTimeData(prevData => {
-        if (prevData.length === 0) return prevData;
+    // Set up real-time listener for room status updates
+    const roomStatusChannel = supabase
+      .channel('room-status-updates')
+      .on('postgres_changes',
+        {
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'room_status'
+        },
+        (payload) => {
+          console.log('Room status update received:', payload);
+          const statusData = payload.new as RoomStatusData;
+          
+          if (statusData) {
+            // Update room statuses state
+            setRoomStatuses(prev => ({
+              ...prev,
+              [statusData.room_id]: statusData
+            }));
 
-        // Get the last data point
-        const lastDataPoint = prevData[prevData.length - 1];
+            // Update rooms state with current draw
+            setRooms(currentRooms =>
+              currentRooms.map(room =>
+                room.id === statusData.room_id
+                  ? { 
+                      ...room, 
+                      currentDraw: statusData.current_draw,
+                      lastUpdated: statusData.last_updated,
+                      status: statusData.status as RoomStatus
+                    }
+                  : room
+              )
+            );
 
-        // Instead of creating a new point for each update, just update the most recent point
-        // This reduces the number of redraws and makes the chart smoother
-        const updatedData = [...prevData];
-        const lastIndex = updatedData.length - 1;
+            // Update power usage state
+            setPowerUsage(prev => ({
+              ...prev,
+              [statusData.room_id]: statusData.current_draw
+            }));
+          }
+        }
+      )
+      .subscribe();
 
-        // Update the value for the specific room
-        updatedData[lastIndex] = {
-          ...updatedData[lastIndex],
-          [roomName]: currentDraw
-        };
-
-        return updatedData;
-      });
-    };
-
-    // Set up real-time listener for power data updates
+    // Set up real-time listener for power data updates (backup)
     const powerDataChannel = supabase
       .channel('room-power-updates')
       .on('postgres_changes',
@@ -210,68 +252,34 @@ const Dashboard: React.FC = () => {
         },
         (payload) => {
           console.log('Power data update received:', payload);
-          const { room_id, current_draw, recorded_at } = payload.new;
-          const timestamp = recorded_at || new Date().toISOString();
+          const powerData = payload.new as any;
+          
+          if (powerData) {
+            const { room_id, current_draw, recorded_at } = powerData;
 
-          // Find the room name
-          const room = rooms.find(r => r.id === room_id);
-          const roomName = room ? room.name : `Room ${room_id}`;
+            // Update the power usage state
+            setPowerUsage(prev => ({
+              ...prev,
+              [room_id]: current_draw
+            }));
 
-          // Update the power usage state
-          setPowerUsage(prev => ({
-            ...prev,
-            [room_id]: current_draw
-          }));
-
-          // Update the time series data for the chart
-          updatePowerTimeData(room_id, roomName, current_draw, timestamp, rooms);
-
-          // Update the rooms state
-          setRooms(currentRooms =>
-            currentRooms.map(room =>
-              room.id === room_id
-                ? { ...room, currentDraw: current_draw, lastUpdated: timestamp }
-                : room
-            )
-          );
-        }
-      )
-      .subscribe();
-
-    // Also set up a listener for the latest power data
-    const latestPowerDataChannel = supabase
-      .channel('latest-power-data')
-      .on('postgres_changes',
-        {
-          event: '*', // Listen for all events
-          schema: 'public',
-          table: 'rooms',
-          filter: 'current_draw=neq.null' // Only listen for changes to current_draw
-        },
-        (payload) => {
-          console.log('Room power update received:', payload);
-          const { id, current_draw, last_updated } = payload.new;
-
-          // Update the rooms state directly
-          setRooms(currentRooms =>
-            currentRooms.map(room =>
-              room.id === id
-                ? {
-                    ...room,
-                    currentDraw: current_draw,
-                    lastUpdated: last_updated || new Date().toISOString()
-                  }
-                : room
-            )
-          );
+            // Update the rooms state
+            setRooms(currentRooms =>
+              currentRooms.map(room =>
+                room.id === room_id
+                  ? { ...room, currentDraw: current_draw, lastUpdated: recorded_at }
+                  : room
+              )
+            );
+          }
         }
       )
       .subscribe();
 
     // Clean up the subscriptions
     return () => {
+      supabase.removeChannel(roomStatusChannel);
       supabase.removeChannel(powerDataChannel);
-      supabase.removeChannel(latestPowerDataChannel);
     };
   }, [navigate]);
 
@@ -279,25 +287,18 @@ const Dashboard: React.FC = () => {
   const getChartData = () => {
     return rooms.map(room => ({
       name: room.name,
-      value: Number(room.currentDraw || 0),
+      value: Number(roomStatuses[room.id]?.current_draw || room.currentDraw || 0),
     }));
   };
 
   // Get filtered data for the line chart based on selected room
   const getFilteredChartData = () => {
-    // Avoid deep copying the entire dataset which can cause performance issues
-    // Instead, use a shallow copy for "all" or map to a new array for filtered data
-
     if (selectedRoom === "all") {
-      // Return a shallow copy when "All Rooms" is selected
       return [...powerTimeData];
     } else {
-      // When a specific room is selected, create a filtered dataset
-      // that only includes the timestamp and the selected room's data
       const selectedRoomObj = rooms.find(room => room.id.toString() === selectedRoom);
       if (!selectedRoomObj) return [...powerTimeData];
 
-      // Create a new array with only the selected room's data
       return powerTimeData.map((dataPoint: PowerTimeData) => ({
         name: dataPoint.name,
         timestamp: dataPoint.timestamp,
@@ -333,7 +334,6 @@ const Dashboard: React.FC = () => {
 
   const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
-      // Get the selected room object if a specific room is selected
       const selectedRoomObj = selectedRoom !== "all"
         ? rooms.find(room => room.id.toString() === selectedRoom)
         : null;
@@ -342,10 +342,8 @@ const Dashboard: React.FC = () => {
         <div className="bg-background border border-border/50 rounded-md p-2 shadow-lg">
           <p className="font-medium text-sm mb-1">{payload[0].payload.name}</p>
           {payload.map((entry, index) => {
-            // Skip entries with no value (happens when filtering)
             if (entry.value === undefined || entry.value === null) return null;
 
-            // For a specific room, highlight the data more prominently
             const isSelectedRoom = selectedRoomObj && entry.name === selectedRoomObj.name;
 
             return (
@@ -364,6 +362,19 @@ const Dashboard: React.FC = () => {
     }
     return null;
   };
+
+  // Enhanced room data with status information
+  const enhancedRooms = rooms.map(room => {
+    const statusData = roomStatuses[room.id];
+    return {
+      ...room,
+      currentDraw: statusData?.current_draw || room.currentDraw,
+      lastUpdated: statusData?.last_updated || room.lastUpdated,
+      status: statusData?.status === 'unscheduled_use' ? 'reserved' as RoomStatus : 
+              statusData?.status === 'scheduled' ? 'in-use' as RoomStatus :
+              'available' as RoomStatus
+    };
+  });
 
   return (
     <SidebarProvider>
@@ -398,14 +409,14 @@ const Dashboard: React.FC = () => {
                   </TabsList>
 
                   <TabsContent value="room" className="mt-4">
-                    {rooms.length === 0 ? (
+                    {enhancedRooms.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-xl text-muted-foreground">No rooms available.</p>
                         <p className="text-sm mt-2">Please add rooms in the Room Management page.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                        {rooms.slice(0, 6).map((room) => (
+                        {enhancedRooms.slice(0, 6).map((room) => (
                           <RoomCard
                             key={room.id}
                             room={room}
@@ -456,8 +467,6 @@ const Dashboard: React.FC = () => {
                               left: 20,
                               bottom: 5,
                             }}
-                            animationDuration={300}
-                            animationEasing="linear"
                           >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" />
@@ -482,9 +491,6 @@ const Dashboard: React.FC = () => {
                                   }
                                   activeDot={{ r: 8 }}
                                   strokeWidth={selectedRoom !== "all" ? 2 : 1}
-                                  animationDuration={300}
-                                  animationEasing="linear"
-                                  isAnimationActive={true}
                                   dot={false}
                                 />
                               ))}

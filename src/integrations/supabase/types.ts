@@ -90,24 +90,41 @@ export type Database = {
       }
       room_status: {
         Row: {
-          created_at: string
+          created_at: string | null
+          current_draw: number | null
           id: number
-          room_id: number | null
-          status: string | null
+          last_updated: string | null
+          room_id: number
+          room_name: string
+          status: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
+          current_draw?: number | null
           id?: number
-          room_id?: number | null
-          status?: string | null
+          last_updated?: string | null
+          room_id: number
+          room_name: string
+          status: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
+          current_draw?: number | null
           id?: number
-          room_id?: number | null
-          status?: string | null
+          last_updated?: string | null
+          room_id?: number
+          room_name?: string
+          status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "room_status_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rooms: {
         Row: {
