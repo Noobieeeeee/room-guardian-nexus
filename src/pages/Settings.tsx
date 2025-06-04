@@ -14,6 +14,7 @@ import { User } from '@/lib/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { signOut } from '@/lib/auth';
+import { getSystemSettings, updateSystemSettings } from '@/lib/settingsService';
 
 const Settings: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -39,7 +40,20 @@ const Settings: React.FC = () => {
       // No user found, redirect to login
       navigate('/');
     }
+
+    // Load system settings
+    loadSystemSettings();
   }, [navigate]);
+
+  const loadSystemSettings = async () => {
+    try {
+      const settings = await getSystemSettings();
+      setSensorThreshold(settings.sensor_threshold.toString());
+      setEmailNotifications(settings.email_notifications);
+    } catch (error) {
+      console.error('Error loading system settings:', error);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +128,31 @@ const Settings: React.FC = () => {
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would send this to an API
-    toast.success('Settings updated successfully');
+    setIsLoading(true);
+
+    try {
+      const threshold = parseFloat(sensorThreshold);
+      if (isNaN(threshold) || threshold < 0.1 || threshold > 5) {
+        toast.error('Sensor threshold must be between 0.1 and 5 amperes');
+        return;
+      }
+
+      const success = await updateSystemSettings({
+        sensor_threshold: threshold,
+        email_notifications: emailNotifications
+      });
+
+      if (success) {
+        toast.success('Settings updated successfully');
+      } else {
+        toast.error('Failed to update settings');
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      toast.error('Failed to update settings');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -292,8 +329,9 @@ const Settings: React.FC = () => {
                       <Button 
                         type="submit" 
                         className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
+                        disabled={isLoading}
                       >
-                        Save Preferences
+                        {isLoading ? 'Saving...' : 'Save Preferences'}
                       </Button>
                     </form>
                   </CardContent>
@@ -333,8 +371,9 @@ const Settings: React.FC = () => {
                         <Button 
                           type="submit" 
                           className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple"
+                          disabled={isLoading}
                         >
-                          Save System Settings
+                          {isLoading ? 'Saving...' : 'Save System Settings'}
                         </Button>
                       </form>
                     </CardContent>

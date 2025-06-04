@@ -88,6 +88,27 @@ export type Database = {
           },
         ]
       }
+      room_status: {
+        Row: {
+          created_at: string
+          id: number
+          room_id: number | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          room_id?: number | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          room_id?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       rooms: {
         Row: {
           current_draw: number | null
