@@ -135,7 +135,9 @@ const Dashboard: React.FC = () => {
             newStatus = hasCurrentSchedule ? 'scheduled' : 'unscheduled_use';
             console.log(`Room ${room.name} final status: ${newStatus} (hasSchedule: ${hasCurrentSchedule})`);
           } else {
-            console.log(`Room ${room.name} marked as available (power below threshold)`);
+            // Power draw is below threshold, room should be available
+            newStatus = 'available';
+            console.log(`Room ${room.name} marked as available (power below threshold: ${currentDraw}A <= ${threshold}A)`);
           }
 
           // Update room status in database
@@ -460,15 +462,17 @@ const Dashboard: React.FC = () => {
   const enhancedRooms = rooms.map(room => {
     const statusData = roomStatuses[room.id];
     
-    // Map database status to display status
+    // Map database status to display status - ensure proper mapping
     let displayStatus: RoomStatus = 'available';
     if (statusData?.status === 'unscheduled_use') {
       displayStatus = 'reserved'; // Shows as "Unscheduled Use" in UI
     } else if (statusData?.status === 'scheduled') {
       displayStatus = 'in-use'; // Shows as "Currently Scheduled" in UI
-    } else {
+    } else if (statusData?.status === 'available') {
       displayStatus = 'available'; // Shows as "Available" in UI
     }
+    
+    console.log(`Room ${room.name} mapping: DB status "${statusData?.status}" -> Display status "${displayStatus}"`);
     
     return {
       ...room,
