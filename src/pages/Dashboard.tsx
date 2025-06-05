@@ -76,15 +76,18 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [isLoading, rooms, roomStatuses]);
 
-  // Effect for monitoring and updating room statuses
+  // Effect for monitoring and updating room statuses with proper threshold checking
   useEffect(() => {
     if (isLoading || !rooms.length) return;
 
     const monitorRoomStatuses = async () => {
       try {
+        console.log('Starting room status monitoring...');
+        
         // Get current system settings
         const settings = await getSystemSettings();
         const threshold = settings.sensor_threshold;
+        console.log('Current sensor threshold:', threshold);
 
         // Get current schedules for today
         const currentSchedules = schedules.filter(schedule => {
@@ -94,26 +97,45 @@ const Dashboard: React.FC = () => {
           return scheduleDate === today;
         });
 
+        console.log('Current schedules for today:', currentSchedules);
+
         // Check each room and update status if needed
         for (const room of rooms) {
           const now = new Date();
-          
-          // Check if room has current schedule
-          const hasCurrentSchedule = currentSchedules.some(schedule => {
-            if (schedule.roomId !== room.id) return false;
-            
-            const startDateTime = parseISO(`${schedule.date}T${schedule.startTime}`);
-            const endDateTime = parseISO(`${schedule.date}T${schedule.endTime}`);
-            
-            return isWithinInterval(now, { start: startDateTime, end: endDateTime });
-          });
-
-          // Determine new status based on current draw and schedule
-          let newStatus = 'available';
           const currentDraw = room.currentDraw || 0;
+          
+          console.log(`Checking room ${room.name} - Current draw: ${currentDraw}A, Threshold: ${threshold}A`);
+          
+          // First check if power draw indicates usage (above threshold)
+          const isInUse = currentDraw > threshold;
+          console.log(`Room ${room.name} is ${isInUse ? 'IN USE' : 'NOT IN USE'} (${currentDraw}A > ${threshold}A: ${isInUse})`);
+          
+          let newStatus = 'available';
+          
+          if (isInUse) {
+            // Check if room has current schedule
+            const hasCurrentSchedule = currentSchedules.some(schedule => {
+              if (schedule.roomId !== room.id) return false;
+              
+              const startDateTime = parseISO(`${schedule.date}T${schedule.startTime}`);
+              const endDateTime = parseISO(`${schedule.date}T${schedule.endTime}`);
+              
+              const isScheduled = isWithinInterval(now, { start: startDateTime, end: endDateTime });
+              console.log(`Room ${room.name} schedule check:`, {
+                scheduleId: schedule.id,
+                title: schedule.title,
+                start: startDateTime,
+                end: endDateTime,
+                isScheduled
+              });
+              
+              return isScheduled;
+            });
 
-          if (currentDraw > threshold) {
             newStatus = hasCurrentSchedule ? 'scheduled' : 'unscheduled_use';
+            console.log(`Room ${room.name} final status: ${newStatus} (hasSchedule: ${hasCurrentSchedule})`);
+          } else {
+            console.log(`Room ${room.name} marked as available (power below threshold)`);
           }
 
           // Update room status in database
@@ -130,7 +152,7 @@ const Dashboard: React.FC = () => {
           if (error) {
             console.error(`Error updating status for room ${room.name}:`, error);
           } else {
-            console.log(`Updated room ${room.name} status to: ${newStatus}`);
+            console.log(`Successfully updated room ${room.name} status to: ${newStatus}`);
           }
         }
       } catch (error) {
@@ -437,13 +459,22 @@ const Dashboard: React.FC = () => {
   // Enhanced room data with status information
   const enhancedRooms = rooms.map(room => {
     const statusData = roomStatuses[room.id];
+    
+    // Map database status to display status
+    let displayStatus: RoomStatus = 'available';
+    if (statusData?.status === 'unscheduled_use') {
+      displayStatus = 'reserved'; // Shows as "Unscheduled Use" in UI
+    } else if (statusData?.status === 'scheduled') {
+      displayStatus = 'in-use'; // Shows as "Currently Scheduled" in UI
+    } else {
+      displayStatus = 'available'; // Shows as "Available" in UI
+    }
+    
     return {
       ...room,
       currentDraw: statusData?.current_draw || room.currentDraw,
       lastUpdated: statusData?.last_updated || room.lastUpdated,
-      status: statusData?.status === 'unscheduled_use' ? 'reserved' as RoomStatus : 
-              statusData?.status === 'scheduled' ? 'in-use' as RoomStatus :
-              'available' as RoomStatus
+      status: displayStatus
     };
   });
 
