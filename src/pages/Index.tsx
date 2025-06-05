@@ -18,7 +18,7 @@ const Index: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-bold">RoomGuardian</h1>
           </div>
           
-          {!showSetup && (
+          {/* {!showSetup && (
             <Button 
               variant="link" 
               onClick={() => setShowSetup(true)}
@@ -26,7 +26,7 @@ const Index: React.FC = () => {
             >
               Set Up Database
             </Button>
-          )}
+          )} */}
         </div>
       </header>
       
@@ -41,7 +41,7 @@ const Index: React.FC = () => {
               <p className="text-lg sm:text-xl text-gray-200">
                 Track room usage, manage scheduling, and monitor energy consumption in real-time with our advanced IoT-enabled platform.
               </p>
-              <div className="flex flex-wrap gap-3 sm:gap-4">
+              {/* <div className="flex flex-wrap gap-3 sm:gap-4">
                 <div className="bg-white/10 backdrop-blur-sm p-3 sm:p-4 rounded-lg">
                   <div className="font-semibold text-2xl sm:text-3xl">100%</div>
                   <div className="text-sm text-gray-300">Monitoring Accuracy</div>
@@ -54,7 +54,7 @@ const Index: React.FC = () => {
                   <div className="font-semibold text-2xl sm:text-3xl">15%</div>
                   <div className="text-sm text-gray-300">Energy Savings</div>
                 </div>
-              </div>
+              </div> */}
             </div>
             
             <div className="flex items-center justify-center">
