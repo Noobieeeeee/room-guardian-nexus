@@ -338,7 +338,7 @@ const Rooms: React.FC = () => {
                       <Button onClick={handleAddRoom} className="ml-4">
                         Add Room
                       </Button>
-                    )*/}}
+                    )*/}
                   </div>
 
                   <TabsContent value="booked" className="mt-0 pt-0">
