@@ -529,6 +529,7 @@ const Dashboard: React.FC = () => {
                             onAddSchedule={() => navigate('/rooms')}
                             userRole={currentUser.role}
                             dashboardView={true}
+                            currentUser={currentUser}
                           />
                         ))}
                       </div>

@@ -266,7 +266,8 @@ export const getSchedules = async (): Promise<Schedule[]> => {
         userName: schedule.user_name || '',
         date: schedule.date || '',
         startTime: startTime,
-        endTime: endTime
+        endTime: endTime,
+        dismissed: schedule.dismissed || false
       };
     });
   } catch (error) {
@@ -323,7 +324,8 @@ export const createSchedule = async (schedule: Omit<Schedule, 'id'>): Promise<Sc
       date: formattedDate,
       start_time: formattedStartTime,
       end_time: formattedEndTime,
-      user_id: userId // Include the user_id field
+      user_id: userId, // Include the user_id field
+      dismissed: false // New schedules should not be dismissed by default
     };
 
     console.log('Final insert data:', insertData);
@@ -409,7 +411,8 @@ export const createSchedule = async (schedule: Omit<Schedule, 'id'>): Promise<Sc
         userName: data.user_name || '',
         date: data.date || '',
         startTime: startTime,
-        endTime: endTime
+        endTime: endTime,
+        dismissed: data.dismissed || false
       };
     } catch (supabaseError) {
       // If the supabase client fails, try a direct fetch to the API
@@ -430,7 +433,8 @@ export const createSchedule = async (schedule: Omit<Schedule, 'id'>): Promise<Sc
         // Ensure user_id is a number in the direct API call as well
         body: JSON.stringify({
           ...insertData,
-          user_id: typeof insertData.user_id === 'string' ? parseInt(insertData.user_id) : insertData.user_id
+          user_id: typeof insertData.user_id === 'string' ? parseInt(insertData.user_id) : insertData.user_id,
+          dismissed: false // New schedules should not be dismissed by default
         })
       });
 
@@ -521,7 +525,8 @@ export const createSchedule = async (schedule: Omit<Schedule, 'id'>): Promise<Sc
         userName: createdSchedule.user_name || '',
         date: createdSchedule.date || '',
         startTime: startTime,
-        endTime: endTime
+        endTime: endTime,
+        dismissed: createdSchedule.dismissed || false
       };
     }
   } catch (error) {
@@ -555,6 +560,7 @@ export const updateSchedule = async (id: number, scheduleData: Partial<Schedule>
     if (scheduleData.title !== undefined) updateData.title = scheduleData.title;
     if (scheduleData.description !== undefined) updateData.description = scheduleData.description;
     if (scheduleData.date !== undefined) updateData.date = scheduleData.date;
+    if (scheduleData.dismissed !== undefined) updateData.dismissed = scheduleData.dismissed;
 
     // Handle time formats
     if (scheduleData.startTime !== undefined) {
@@ -626,7 +632,8 @@ export const updateSchedule = async (id: number, scheduleData: Partial<Schedule>
       userName: data.user_name || '',
       date: data.date || '',
       startTime: startTime,
-      endTime: endTime
+      endTime: endTime,
+      dismissed: data.dismissed || false
     };
   } catch (error) {
     console.error('API request failed:', error);

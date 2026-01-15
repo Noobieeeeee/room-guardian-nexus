@@ -1,10 +1,22 @@
-import React from 'react';
-import { UserRole, Room, Schedule } from '@/lib/types';
+import React, { useState } from 'react';
+import { UserRole, Room, Schedule, User } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO, isWithinInterval, isFuture, addMinutes, isAfter, isBefore, differenceInMinutes } from 'date-fns';
 import { formatTime } from '@/lib/dateUtils';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { updateSchedule } from '@/lib/api';
 
 // Commented out imports for the override functionality
 /*
@@ -31,6 +43,7 @@ interface RoomCardProps {
   onAddSchedule: (roomId: number) => void;
   userRole: UserRole;
   dashboardView?: boolean;
+  currentUser?: User | null;
 }
 
 const RoomCard: React.FC<RoomCardProps> = ({
@@ -38,10 +51,53 @@ const RoomCard: React.FC<RoomCardProps> = ({
   schedules,
   onAddSchedule,
   userRole,
-  dashboardView = false
+  dashboardView = false,
+  currentUser = null
 }) => {
   const roomSchedules = schedules.filter(schedule => schedule.roomId === room.id);
   const now = new Date();
+
+  // State for dismiss confirmation dialog
+  const [showDismissDialog, setShowDismissDialog] = useState(false);
+  const [scheduleToDismiss, setScheduleToDismiss] = useState<Schedule | null>(null);
+
+  // Handle dismiss click
+  const handleDismissClick = (schedule: Schedule) => {
+    // Check if the current user is the creator of the schedule
+    // and that the schedule is not already dismissed
+    if (currentUser && 
+        schedule.userId === currentUser.id && 
+        !schedule.dismissed) {
+      setScheduleToDismiss(schedule);
+      setShowDismissDialog(true);
+    }
+  };
+
+  // Handle confirm dismiss
+  const handleConfirmDismiss = async () => {
+    if (!scheduleToDismiss) return;
+
+    try {
+      // Update the schedule to set dismissed to true
+      await updateSchedule(Number(scheduleToDismiss.id), { dismissed: true });
+      
+      toast.success('Schedule dismissed successfully');
+      setShowDismissDialog(false);
+      setScheduleToDismiss(null);
+      
+      // Refresh the page or update the schedules list
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to dismiss schedule:', error);
+      toast.error('Failed to dismiss schedule');
+    }
+  };
+
+  // Handle cancel dismiss
+  const handleCancelDismiss = () => {
+    setShowDismissDialog(false);
+    setScheduleToDismiss(null);
+  };
 
   // State for override toggle and confirmation dialog - Commented out for now
   /*
@@ -242,21 +298,66 @@ const RoomCard: React.FC<RoomCardProps> = ({
         <div className="flex-1">
           {nextSchedule ? (
             <div className={cn(
-              "p-3 rounded-md mb-4",
+              "p-3 rounded-md mb-4 relative",
               isCurrentlyScheduled || isApproachingSchedule
                 ? "bg-guardian-red/10"
-                : "bg-secondary/10"
+                : "bg-secondary/10",
+              nextSchedule.dismissed && "opacity-75"
             )}>
-              <p className="font-medium text-sm">{nextSchedule.title || `Room Booking`}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              {/* Dismissed overlay/badge */}
+              {nextSchedule.dismissed && (
+                <div className="absolute top-2 right-2">
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
+                    Dismissed
+                  </span>
+                </div>
+              )}
+              
+              <p className={cn(
+                "font-medium text-sm",
+                nextSchedule.dismissed && "line-through text-muted-foreground"
+              )}>
+                {nextSchedule.title || `Room Booking`}
+              </p>
+              <p className={cn(
+                "text-xs text-muted-foreground mt-1",
+                nextSchedule.dismissed && "line-through"
+              )}>
                 {format(parseISO(`${nextSchedule.date}T00:00:00`), 'MMM d')} • {formatTime(nextSchedule.startTime)} - {formatTime(nextSchedule.endTime)}
               </p>
-              <p className="text-xs mt-1">By {nextSchedule.userName}</p>
-              {isCurrentlyScheduled && (
-                <p className="text-xs mt-1 text-guardian-red font-medium">Currently in progress</p>
+              <p className={cn(
+                "text-xs mt-1",
+                nextSchedule.dismissed && "line-through text-muted-foreground"
+              )}>
+                By {nextSchedule.userName}
+              </p>
+              
+              {/* Status indicators */}
+              {nextSchedule.dismissed ? (
+                <p className="text-xs mt-1 text-gray-500 font-medium">This session has been dismissed</p>
+              ) : (
+                <>
+                  {isCurrentlyScheduled && (
+                    <p className="text-xs mt-1 text-guardian-red font-medium">Currently in progress</p>
+                  )}
+                  {isApproachingSchedule && !isCurrentlyScheduled && (
+                    <p className="text-xs mt-1 text-guardian-red font-medium">Starting soon</p>
+                  )}
+                </>
               )}
-              {isApproachingSchedule && !isCurrentlyScheduled && (
-                <p className="text-xs mt-1 text-guardian-red font-medium">Starting soon</p>
+              
+              {/* Dismiss button for schedules created by the current user (only if not already dismissed) */}
+              {currentUser && 
+               nextSchedule.userId === currentUser.id && 
+               !nextSchedule.dismissed && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full text-xs"
+                  onClick={() => handleDismissClick(nextSchedule)}
+                >
+                  Dismiss Class
+                </Button>
               )}
             </div>
           ) : (
@@ -309,6 +410,28 @@ const RoomCard: React.FC<RoomCardProps> = ({
             </p>
           </div>
         )}
+
+        {/* Dismiss Confirmation Dialog */}
+        <AlertDialog open={showDismissDialog} onOpenChange={setShowDismissDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Dismiss Class/Session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to dismiss this class/session? This will mark the schedule as dismissed and hide it from active views.
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelDismiss}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmDismiss}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Yes, Dismiss
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Confirmation Dialog - Commented out for now
         <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

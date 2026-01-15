@@ -29,6 +29,7 @@ export interface Schedule {
   date: string;
   startTime: string;
   endTime: string;
+  dismissed?: boolean;
 }
 
 export interface ActivityLog {

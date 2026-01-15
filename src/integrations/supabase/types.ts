@@ -155,6 +155,7 @@ export type Database = {
           created_at: string | null
           date: string | null
           description: string | null
+          dismissed: boolean
           end_time: string
           id: number
           room_id: number
@@ -168,6 +169,7 @@ export type Database = {
           created_at?: string | null
           date?: string | null
           description?: string | null
+          dismissed?: boolean
           end_time: string
           id?: number
           room_id: number
@@ -181,6 +183,7 @@ export type Database = {
           created_at?: string | null
           date?: string | null
           description?: string | null
+          dismissed?: boolean
           end_time?: string
           id?: number
           room_id?: number
