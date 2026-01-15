@@ -277,7 +277,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
             )}>
               <span className="transition-all duration-700">
                 {isCurrentlyScheduled ? 
-                  `${(20 + Math.random() * 10).toFixed(1)} mA` : 
+                  `${(50 + Math.random() * 10).toFixed(1)} mA` : 
                   '0.00 mA'}
               </span>
               {isActiveNow && <span className="ml-1 inline-block animate-pulse">●</span>}
