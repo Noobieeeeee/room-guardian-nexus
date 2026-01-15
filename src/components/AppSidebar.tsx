@@ -52,7 +52,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ userRole }) => {
       path: '/dashboard',
       name: 'Dashboard',
       icon: LayoutDashboard,
-      allowedRoles: ['admin'] as UserRole[]
+      allowedRoles: ['admin', 'faculty'] as UserRole[]
     },
 
     {

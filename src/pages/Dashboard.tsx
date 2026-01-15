@@ -198,8 +198,8 @@ const Dashboard: React.FC = () => {
         console.log('Current user from localStorage:', user);
         setCurrentUser(user);
 
-        // If user is not admin, redirect to calendar page
-        if (user.role !== 'admin') {
+        // If user is not admin or faculty, redirect to calendar page
+        if (user.role !== 'admin' && user.role !== 'faculty') {
           navigate('/calendar');
           return;
         }
@@ -411,12 +411,12 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (!currentUser || currentUser.role !== 'admin') {
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'faculty')) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
-          <p className="mb-4">You need admin privileges to view this page.</p>
+          <h2 className="text-xl font-bold mb-2">Admin/Faculty Access Required</h2>
+          <p className="mb-4">You need admin or faculty privileges to view this page.</p>
           <button
             onClick={() => navigate('/calendar')}
             className="bg-guardian-yellow hover:bg-guardian-yellow/80 text-guardian-purple px-4 py-2 rounded"
